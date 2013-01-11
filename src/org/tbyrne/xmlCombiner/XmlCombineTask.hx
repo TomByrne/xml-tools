@@ -109,7 +109,7 @@ class XmlCombineTask implements IXmlCombineTask  {
 		//E4X.trace(new E4X(within).a(function(attName:String, attVal:String, xml:Xml):Bool { return attVal == "id"; } ));
 		//E4X.x(within.a("id"));
 		
-		E4X.trace(new E4X(within).child(function(xml:Xml, _i:Int):Bool { return new E4X(xml).a(function(attName:String, attVal:String, xml:Xml):Bool { return attName == "id"; } ).exec() != null; } ).exec());
+		E4X.trace(new E4X(within).child(function(xml:Xml, _i:Int):Bool return new E4X(xml).a(function(attName:String, attVal:String, xml:Xml):Bool  return attName == "id" ).exec() != null ).exec());
 		E4X.x(within.child(a("id") != null));
 		
 		//var nodes:Iterator<Xml> = E4X.x(within._.xml));

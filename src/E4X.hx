@@ -66,10 +66,10 @@ class E4X
 			case ECall(e, params):
 				// change function calls from '_' to 'desc'
 				var attrMode:Bool = false;
-				trace("meth: "+e);
+				trace("call: "+e);
 				switch(e.expr) {
 					case EField(e2, field):
-						trace("meth name: "+field);
+						trace("call name1: "+field);
 						if (field == DESC_SHORTCUT) {
 							e.expr = EField(e2, DESC_METHOD);
 						}
@@ -79,7 +79,7 @@ class E4X
 					case EConst(c):
 						switch(c) {
 							case CIdent(s):
-								trace("meth name: "+s);
+								trace("call name2: "+s);
 								if (s == DESC_SHORTCUT) {
 									e.expr = EConst(CIdent(DESC_METHOD));
 								}
@@ -94,6 +94,7 @@ class E4X
 				for (i in 0 ... params.length) {
 					params[i] = checkParam(params[i], attrMode, isWrapped);
 				}
+				trace("FIN CALL");
 				return { expr : ECall( checkExpr(e, false, allowBlock, makeFieldOf, isWrapped), params), pos : pos };
 			case EConst(c):
 				switch(c) {
@@ -127,7 +128,7 @@ class E4X
 				}
 			case EBinop( op , e1 , e2 ):
 				trace("EBinop: "+e1);
-				return { expr:EBinop(op, doE4X(e1, wrapField, allowBlock, makeFieldOf), doE4X(e1, wrapField, allowBlock, makeFieldOf)), pos:pos };
+				return { expr:EBinop(op, doE4X(e1, wrapField, allowBlock, makeFieldOf), doE4X(e2, wrapField, allowBlock, makeFieldOf)), pos:pos };
 			default:
 				return expr;
 		}
@@ -155,12 +156,16 @@ class E4X
 						expr = checkExpr(expr, true, true, "xml", isWrapped);
 				}
 			case EFunction( name , f ):
-				trace("FUNK: "+name);
+				trace("FUNK: "+name+" "+f.expr);
 				f.expr = checkExpr(f.expr, true, true, "xml", isWrapped);
 				return { expr:EFunction(name, f), pos:pos };
+			case EReturn( e ):
+				expr = checkExpr(expr, true, false, "xml", isWrapped);
 			default:
 				expr = checkExpr(expr, true, false, "xml", isWrapped);
+				expr = macro return $expr;
 		}
+		trace("FIN PARAM");
 		if(attributeCall){
 			return macro function(attName:String, attVal:String, xml:Xml):Bool $expr;
 		}else {
