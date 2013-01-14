@@ -22,7 +22,7 @@ class E4XTest
 		
 		test("Child Has Attribute", within.a("id"), new E4X(within).a(function(attName:String, attVal:String, xml:Xml):Bool { return attName == "id"; } ).exec());
 		
-		test("Child Non-Null Attribute", within.child(a("id") != null), new E4X(within).child(function(xml:Xml, _i:Int):Bool return new E4X(xml).a(function(attName:String, attVal:String, xml:Xml):Bool {  return attName == "id"; } ).exec() != null ).exec());
+		test("Child Non-Null Attribute", within.child(a("id") != null), new E4X(within).child(function(xml:Xml, _i:Int):Bool return new E4X(xml).a(function(attName:String, attVal:String, xml:Xml):Bool {  return attName == "id"; } ).has() != null ).exec());
 		
 		test("Child by name", within.node, new E4X(within).child(function(xml:Xml, _i:Int):Bool { return xml.nodeName == "node";} ).exec());
 		
@@ -30,15 +30,15 @@ class E4XTest
 		
 		test("Desc. Text node of min size", within._.text(text.length > 10), new E4X(within).desc().text(function(text:Null<String>, xml:Xml):Bool return text.length > 10 ).exec());
 		
-		var att:String = "url";
-		test("Desc. Nodes with name & Attrib.", within._(nodeName == "xml" && a(url).length()), new E4X(within).desc(function(xml:Xml):Bool return xml.nodeName == "xml" && new E4X(xml).att(function(attName:String, attVal:String, xml:Xml):Bool {return attName == url;} ).exec() ).exec());
+		var url:String = "url";
+		test("Desc. Nodes with name & Attrib.", within._(nodeName == "xml" && a(url)), new E4X(within).desc(function(xml:Xml):Bool return xml.nodeName == "xml" && new E4X(xml).a(function(attName:String, attVal:String, xml:Xml):Bool {return attName == url;} ).has() ).exec());
 		
 		
 		
 	}
 	
 	@:macro public static function test(testName:String, expr:Expr, match:Expr):Expr {
-		expr = E4X.doE4X(expr, true, false, null, null);
+		expr = E4X.doE4X(expr, true, false, null, null, "exec");
 		var s1:String = cleanStr(Std.string(expr));
 		var s2:String = cleanStr(Std.string(match));
 		if (s1!=s2) {
