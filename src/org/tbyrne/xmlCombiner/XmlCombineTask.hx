@@ -106,11 +106,11 @@ class XmlCombineTask implements IXmlCombineTask  {
 	}
 
 	private function addResources(within : Xml, allowCheck:Bool) : Void {
-		var nodes:Iterator<Xml> = E4X.x(within._.xml.filt(att(url).length()));
-		for each(var node:XML in nodes){
+		var nodes:Iterator<Xml> = E4X.x(within._.child(nodeName=="xml" && a("url")));
+		for(node in nodes){
 			addResource(node);
 		}
-		if(within.name()=="xml" && within.@url.length()){
+		if(within.nodeName=="xml" && within.get("url")!=null){
 			addResource(within);
 		}
 		if(allowCheck)checkAllLoaded();

@@ -13,7 +13,7 @@ import haxe.macro.Context;
 class E4X 
 {
 	@:macro public static function x(expr:Expr):Expr {
-		return doE4X(expr, true, false, null, null, "exec");
+		return doE4X(expr, true, false, null, null);
 	}
 	
 	#if macro
@@ -24,15 +24,25 @@ class E4X
 	private static var TEXT_METHOD:String = "text";
 	
 	
-	public static function doE4X(expr:Expr, wrapField:Bool, allowBlock:Bool, makeFieldOf:String, filterType:Null<FilterType>, callName:String):Expr {
-		var isWrapped:IsWrappedFlag = { wrapped:false };
-		expr = checkExpr(expr, wrapField, allowBlock, makeFieldOf, isWrapped, filterType, callName);
-		if (isWrapped.wrapped && !isE4XPropAccess(expr)) {
+	public static function doE4X(expr:Expr, wrapField:Bool, allowBlock:Bool, makeFieldOf:String, filterType:Null<FilterType>):Expr {
+		var wrapInfo:WrapInfo = { wrapped:false, type:null };
+		expr = checkExpr(expr, wrapField, allowBlock, makeFieldOf, wrapInfo, filterType);
+		if (wrapInfo.wrapped && !isE4XPropAccess(expr)) {
 			var pos = Context.currentPos();
-			return { expr:ECall( { expr:EField(expr, callName), pos:pos }, []), pos:pos };
-		}else{
-			return expr;
+			if(filterType!=null){
+				return macro E4X.doHas($expr);
+			}else if(wrapInfo.type!=null){
+				switch(wrapInfo.type) {
+					case Node, IndNode:
+						return macro E4X.doRetNodes($expr);
+					case Attribute:
+						return macro E4X.doRetAttribs($expr);
+					case Text:
+						return macro E4X.doRetText($expr);
+				}
+			}
 		}
+		return expr;
 	}
 	
 	/**
@@ -43,14 +53,14 @@ class E4X
 		 * Wraps expressions in functions  - i.e. xml.desc(a("id")!=null)) -> xml.desc(function(xml:Xml, i:Int):Bool{return xml.a("id")!=null;})
 		 * Converts underscore to descendants call - i.e. xml._ -> xml.desc()        &        xml._(a("id")!=null) ->  xml.desc(function(xml:Xml, i:Int):Bool{return xml.a("id")!=null;})
 	 */
-	private static function checkExpr(expr:Expr, wrapField:Bool, allowBlock:Bool, makeFieldOf:String, isWrapped:IsWrappedFlag, filterType:Null<FilterType>, callName:String):Expr {
+	private static function checkExpr(expr:Expr, wrapField:Bool, allowBlock:Bool, makeFieldOf:String, wrapInfo:WrapInfo, filterType:Null<FilterType>):Expr {
 		var pos = expr.pos;
 		var exprDef = expr.expr;
 		switch(exprDef) {
 			case EBlock(eArr):
 				if (allowBlock) {
 					for (i in 0 ... eArr.length) {
-						eArr[i] = doE4X(eArr[i], wrapField, allowBlock, makeFieldOf, filterType, callName);
+						eArr[i] = doE4X(eArr[i], wrapField, allowBlock, makeFieldOf, filterType);
 					}
 					return { expr:EBlock(eArr), pos:pos };
 				}else{
@@ -90,10 +100,13 @@ class E4X
 					default:
 						// ignore
 				}
+				if(newFilterType!=null && wrapInfo.type==null)
+					wrapInfo.type = newFilterType;
+					
 				for (i in 0 ... params.length) {
-					params[i] = checkParam(params[i], newFilterType, isWrapped);
+					params[i] = checkParam(params[i], newFilterType, wrapInfo);
 				}
-				return { expr : ECall( checkExpr(e, false, allowBlock, makeFieldOf, isWrapped, filterType, callName), params), pos : pos };
+				return { expr : ECall( checkExpr(e, false, allowBlock, makeFieldOf, wrapInfo, filterType), params), pos : pos };
 			case EConst(c):
 				switch(c) {
 					case CIdent(s):
@@ -101,12 +114,12 @@ class E4X
 							return expr;
 						}else if (makeFieldOf != null) {
 							expr = { expr:EField( { expr:EConst(CIdent(makeFieldOf)), pos:pos }, s), pos:pos };
-							return checkExpr(expr, wrapField, allowBlock, null, isWrapped, filterType, callName);
+							return checkExpr(expr, wrapField, allowBlock, null, wrapInfo, filterType);
 						}else if (!wrapField) {
 							return expr;
 						}else if (filterType == null || s == "xml") {
-							isWrapped.wrapped = true;
-							return macro new E4X($expr);
+							wrapInfo.wrapped = true;
+							return macro E4X.getNew($expr);
 						}else {
 							return expr;
 						}
@@ -115,38 +128,43 @@ class E4X
 				}
 			case EField(e, field):
 				if (!wrapField) {
-					var checked:Expr = checkExpr(e, true, allowBlock, makeFieldOf, isWrapped, filterType, callName);
+					var checked:Expr = checkExpr(e, true, allowBlock, makeFieldOf, wrapInfo, filterType);
 					return { expr : EField(checked,field), pos : pos };
 				}else {
 					if(!isXmlPropAccess(field, e, filterType)){
-						e = checkExpr(e, true, allowBlock, makeFieldOf, isWrapped, filterType, callName);
+						e = checkExpr(e, true, allowBlock, makeFieldOf, wrapInfo, filterType);
 					}
-					if (!isWrapped.wrapped) {
+					if (!wrapInfo.wrapped) {
 						// This is propbably a property of a special prop (e.g. 'text.length')
 						return expr;
-					}else if (field == DESC_SHORTCUT) {
-						return macro $e.desc();
-					}else {
-						// wrap prop access in child() call
-						var nameE = {expr:EConst(CString(field)), pos:pos};
-						var check = macro function(xml:Xml, _i:Int):Bool { return xml.nodeName == $nameE; };
-						return macro $e.child($check);
+					}else{
+						if(wrapInfo.type==null)
+							wrapInfo.type = Node;
+						
+						if (field == DESC_SHORTCUT) {
+							return macro $e.desc();
+						}else {
+							// wrap prop access in child() call
+							var nameE = {expr:EConst(CString(field)), pos:pos};
+							var check = macro function(xml:Xml, _i:Int):Bool { return xml.nodeName == $nameE; };
+							return macro $e.child($check);
+						}
 					}
 				}
 			case EReturn(e):
 				if (e != null) {
-					e =  doE4X(e, wrapField, allowBlock, makeFieldOf, filterType, callName);
+					e =  doE4X(e, wrapField, allowBlock, makeFieldOf, filterType);
 					return macro return $e;
 				}else {
 					return expr;
 				}
 			case EBinop( op , e1 , e2 ):
-				return { expr:EBinop(op, doE4X(e1, wrapField, allowBlock, makeFieldOf, filterType, callName), doE4X(e2, wrapField, allowBlock, makeFieldOf, filterType, callName)), pos:pos };
+				return { expr:EBinop(op, doE4X(e1, wrapField, allowBlock, makeFieldOf, filterType), doE4X(e2, wrapField, allowBlock, makeFieldOf, filterType)), pos:pos };
 			default:
 				return expr;
 		}
 	}
-	private static function checkParam(expr:Expr, filterType:FilterType, isWrapped:IsWrappedFlag):Expr {
+	private static function checkParam(expr:Expr, filterType:FilterType, wrapInfo:WrapInfo):Expr {
 		var pos = expr.pos;
 		var exprDef = expr.expr;
 		switch(exprDef) {
@@ -162,15 +180,15 @@ class E4X
 								expr = macro { return text == $expr; };
 						}
 					default:
-						expr = checkExpr(expr, true, true, "xml", isWrapped, filterType, "has");
+						expr = checkExpr(expr, true, true, "xml", wrapInfo, filterType);
 				}
 			case EFunction( name , f ):
-				f.expr = checkExpr(f.expr, true, true, "xml", isWrapped, filterType, "has");
+				f.expr = checkExpr(f.expr, true, true, "xml", wrapInfo, filterType);
 				return { expr:EFunction(name, f), pos:pos };
 			case EReturn( e ):
-				expr = checkExpr(expr, true, false, "xml", isWrapped, filterType, "has");
+				expr = checkExpr(expr, true, false, "xml", wrapInfo, filterType);
 			default:
-				expr = checkExpr(expr, true, false, "xml", isWrapped, filterType, "has");
+				expr = checkExpr(expr, true, false, "xml", wrapInfo, filterType);
 				expr = macro return $expr;
 		}
 		switch(filterType) {
@@ -238,12 +256,45 @@ class E4X
 	
 	#else
 	
+	public static function getNew(xml:Xml):E4X {
+		var ret:E4X;
+		if (_pool.length > 0) {
+			ret = _pool.pop();
+			ret.setXml(xml);
+		}else {
+			ret = new E4X(xml);
+		}
+		return ret;
+	}
+	public static function doRetNodes(e4X:E4X):Iterator<Xml> {
+		var ret:Iterator<Xml> = e4X.retNodes();
+		_pool.push(e4X);
+		return ret;
+	}
+	public static function doRetAttribs(e4X:E4X):Iterator<Hash<String>>{
+		var ret:Iterator<Hash<String>> = e4X.retAttribs();
+		_pool.push(e4X);
+		return ret;
+	}
+	public static function doRetText(e4X:E4X):Iterator<Null<String>>{
+		var ret:Iterator<Null<String>> = e4X.retText();
+		_pool.push(e4X);
+		return ret;
+	}
+	public static function doHas(e4X:E4X):Bool{
+		var ret:Bool = e4X.has();
+		_pool.push(e4X);
+		return ret;
+	}
+	
+	private static var _pool:Array<E4X> = new Array<E4X>();
+	
 	private var _root:Xml;
 	private var _parent:Xml;
 	private var _current:Array<Xml>;
 	private var _attributes:Array<Hash<String>>;
 	private var _texts:Array<Null<String>>;
-	private var _retCode:Int;
+	private var _retState:E4XReturnState;
 	
 	/**
 		Creates new walking operation.
@@ -251,12 +302,18 @@ class E4X
 	**/
 	public function new(value:Xml)
 	{
-		this._root = value;
-		this._retCode = 0;
+		if(value!=null)setXml(value);
+	}
+	
+	public function setXml(xml:Xml):Void {
+		this._attributes = null;
+		
+		this._root = xml;
+		this._retState = E4XReturnState.Node;
 		this._current = new Array<Xml>();
-		if (value != null && value.nodeType == Xml.Document)
-			this._current.push(value.firstElement());
-		else if (value != null) this._current.push(value);
+		if (xml != null && xml.nodeType == Xml.Document)
+			this._current.push(xml.firstElement());
+		else if (xml != null) this._current.push(xml);
 	}
 	
 	/**
@@ -309,7 +366,7 @@ class E4X
 			}
 		}
 		this._current = a;
-		this._retCode = 0;
+		this._retState = E4XReturnState.Node;
 		return this;
 	}
 	
@@ -356,7 +413,7 @@ class E4X
 			}
 		}
 		this._current = a;
-		this._retCode = 0;
+		this._retState = E4XReturnState.Node;
 		return this;
 	}
 	
@@ -404,7 +461,7 @@ class E4X
 			}
 		}
 		this._current = a;
-		this._retCode = 0;
+		this._retState = E4XReturnState.Node;
 		return this;
 	}
 	
@@ -460,7 +517,7 @@ class E4X
 		}
 		this._attributes = allatts;
 		this._current = a;
-		this._retCode = 1;
+		this._retState = E4XReturnState.Attribute;
 		return this;
 	}
 	
@@ -547,7 +604,7 @@ class E4X
 		}
 		this._current = ca;
 		this._texts = a;
-		this._retCode = 2;
+		this._retState = E4XReturnState.Text;
 		return this;
 	}
 	
@@ -558,24 +615,36 @@ class E4X
 		the return value will be of type Arrat&lt;Hash&lt;String&gt;&gt;. If the last operation
 		filtered text nodes, the return value will be of type Array&lt;Null&lt;String&gt;&gt;.
 	**/
-	public function exec():Array<Dynamic>
+	public function exec():Iterator<Dynamic>
 	{
 		var u:Array<Dynamic> = null;
-		switch (this._retCode)
+		switch (this._retState)
 		{
-			case 0: u = this._current;
-			case 1: u = this._attributes;
-			case 2: u = this._texts;
+			case      Node: u = this._current;
+			case Attribute: u = this._attributes;
+			case      Text: u = this._texts;
 		}
-		return u;
+		return u.iterator();
+	}
+	public function retNodes():Iterator<Xml>
+	{
+		return _current.iterator();
+	}
+	public function retAttribs():Iterator<Hash<String>>
+	{
+		return _attributes.iterator();
+	}
+	public function retText():Iterator<Null<String>>
+	{
+		return _texts.iterator();
 	}
 	public function has():Bool
 	{
-		switch (this._retCode)
+		switch (this._retState)
 		{
-			case 0: return this._current.length>0;
-			case 1: return this._attributes.length>0;
-			case 2: return this._texts.length > 0;
+			case      Node: return this._current.length>0;
+			case Attribute: return this._attributes.length>0;
+			case      Text: return this._texts.length > 0;
 		}
 		throw "Invalid return code";
 	}
@@ -607,8 +676,9 @@ class E4X
 
 
 #if macro
-typedef IsWrappedFlag = {
+typedef WrapInfo = {
 	var wrapped:Bool;
+	var type:FilterType;
 }
 
 enum FilterType {
@@ -617,4 +687,13 @@ enum FilterType {
 	Attribute;
 	Text;
 }
+
+#else
+
+enum E4XReturnState {
+	Node;
+	Attribute;
+	Text;
+}
+
 #end
