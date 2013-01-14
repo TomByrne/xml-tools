@@ -106,21 +106,14 @@ class XmlCombineTask implements IXmlCombineTask  {
 	}
 
 	private function addResources(within : Xml, allowCheck:Bool) : Void {
-		//E4X.trace(new E4X(within).a(function(attName:String, attVal:String, xml:Xml):Bool { return attVal == "id"; } ));
-		//E4X.x(within.a("id"));
-		
-		E4X.trace(new E4X(within).child(function(xml:Xml, _i:Int):Bool return new E4X(xml).a(function(attName:String, attVal:String, xml:Xml):Bool  return attName == "id" ).exec() != null ).exec());
-		E4X.x(within.child(a("id") != null));
-		
-		//var nodes:Iterator<Xml> = E4X.x(within._.xml));
-		//var nodes:Iterator<Xml> = E4X.x(within._.xml.filt(att(url).length()));
-		/*for each(var node:XML in nodes){
+		var nodes:Iterator<Xml> = E4X.x(within._.xml.filt(att(url).length()));
+		for each(var node:XML in nodes){
 			addResource(node);
 		}
 		if(within.name()=="xml" && within.@url.length()){
 			addResource(within);
 		}
-		if(allowCheck)checkAllLoaded();*/
+		if(allowCheck)checkAllLoaded();
 	}
 
 	private function addResource(node : Xml) : Void {

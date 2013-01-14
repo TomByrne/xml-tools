@@ -13,16 +13,7 @@ import haxe.macro.Context;
 class E4X 
 {
 	@:macro public static function x(expr:Expr):Expr {
-		var pos = Context.currentPos();
-		trace("before: "+expr);
-		expr = doE4X(expr, true, false, null);
-		trace("after: "+expr);
-		//return { expr : ECall({ expr : EField(expr,"exec"), pos : pos },[]), pos : pos }; // calls the exec() method
-		return expr;
-	}
-	@:macro public static function trace(expr:Expr):Expr {
-		trace(expr);
-		return expr;
+		return doE4X(expr, true, false, null, null);
 	}
 	
 	#if macro
@@ -30,11 +21,12 @@ class E4X
 	private static var DESC_SHORTCUT:String = "_";
 	private static var DESC_METHOD:String = "desc";
 	private static var ATTR_METHOD:String = "a";
+	private static var TEXT_METHOD:String = "text";
 	
 	
-	private static function doE4X(expr:Expr, wrapField:Bool, allowBlock:Bool, makeFieldOf:String):Expr {
+	public static function doE4X(expr:Expr, wrapField:Bool, allowBlock:Bool, makeFieldOf:String, filterType:Null<FilterType>):Expr {
 		var isWrapped:IsWrappedFlag = { wrapped:false };
-		expr = checkExpr(expr, wrapField, allowBlock, makeFieldOf, isWrapped);
+		expr = checkExpr(expr, wrapField, allowBlock, makeFieldOf, isWrapped, filterType);
 		if (isWrapped.wrapped) {
 			return macro $expr.exec();
 		}else{
@@ -50,14 +42,14 @@ class E4X
 		 * Wraps expressions in functions  - i.e. xml.desc(a("id")!=null)) -> xml.desc(function(xml:Xml, i:Int):Bool{return xml.a("id")!=null;})
 		 * Converts underscore to descendants call - i.e. xml._ -> xml.desc()        &        xml._(a("id")!=null) ->  xml.desc(function(xml:Xml, i:Int):Bool{return xml.a("id")!=null;})
 	 */
-	private static function checkExpr(expr:Expr, wrapField:Bool, allowBlock:Bool, makeFieldOf:String, isWrapped:IsWrappedFlag):Expr {
+	private static function checkExpr(expr:Expr, wrapField:Bool, allowBlock:Bool, makeFieldOf:String, isWrapped:IsWrappedFlag, filterType:Null<FilterType>):Expr {
 		var pos = expr.pos;
 		var exprDef = expr.expr;
 		switch(exprDef) {
 			case EBlock(eArr):
 				if (allowBlock) {
 					for (i in 0 ... eArr.length) {
-						eArr[i] = doE4X(eArr[i], wrapField, allowBlock, makeFieldOf);
+						eArr[i] = doE4X(eArr[i], wrapField, allowBlock, makeFieldOf, filterType);
 					}
 					return { expr:EBlock(eArr), pos:pos };
 				}else{
@@ -65,26 +57,31 @@ class E4X
 				}
 			case ECall(e, params):
 				// change function calls from '_' to 'desc'
-				var attrMode:Bool = false;
-				trace("call: "+e);
+				var newFilterType:FilterType = IndNode;
 				switch(e.expr) {
 					case EField(e2, field):
-						trace("call name1: "+field);
 						if (field == DESC_SHORTCUT) {
 							e.expr = EField(e2, DESC_METHOD);
-						}
-						if (field == ATTR_METHOD) {
-							attrMode = true;
+							newFilterType = Node;
+						}else if (field == DESC_METHOD) {
+							newFilterType = Node;
+						}else if (field == ATTR_METHOD) {
+							newFilterType = Attribute;
+						}else if (field == TEXT_METHOD) {
+							newFilterType = Text;
 						}
 					case EConst(c):
 						switch(c) {
 							case CIdent(s):
-								trace("call name2: "+s);
 								if (s == DESC_SHORTCUT) {
 									e.expr = EConst(CIdent(DESC_METHOD));
-								}
-								if (s == ATTR_METHOD) {
-									attrMode = true;
+									newFilterType = Node;
+								}else if (s == DESC_METHOD) {
+									newFilterType = Node;
+								}else if (s == ATTR_METHOD) {
+									newFilterType = Attribute;
+								}else if (s == TEXT_METHOD) {
+									newFilterType = Text;
 								}
 							default: // ignore
 						}
@@ -92,84 +89,101 @@ class E4X
 						// ignore
 				}
 				for (i in 0 ... params.length) {
-					params[i] = checkParam(params[i], attrMode, isWrapped);
+					params[i] = checkParam(params[i], newFilterType, isWrapped);
 				}
-				trace("FIN CALL");
-				return { expr : ECall( checkExpr(e, false, allowBlock, makeFieldOf, isWrapped), params), pos : pos };
+				return { expr : ECall( checkExpr(e, false, allowBlock, makeFieldOf, isWrapped, filterType), params), pos : pos };
 			case EConst(c):
 				switch(c) {
 					case CIdent(s):
-						if (makeFieldOf!=null) {
+						if (s == "null" || (filterType!=null && isSpecialProp(filterType, s))) {
+							return expr;
+						}else if (makeFieldOf != null) {
 							expr = { expr:EField( { expr:EConst(CIdent(makeFieldOf)), pos:pos }, s), pos:pos };
-							return checkExpr(expr, wrapField, allowBlock, null, isWrapped);
+							return checkExpr(expr, wrapField, allowBlock, null, isWrapped, filterType);
 						}else if (!wrapField) {
 							return expr;
-						}else {
+						}else if (filterType == null || s == "xml") {
 							isWrapped.wrapped = true;
 							return macro new E4X($expr);
+						}else {
+							return expr;
 						}
 					default:
 						return expr;
 				}
 			case EField(e, field):
 				if (!wrapField) {
-					var checked:Expr = checkExpr(e, true, allowBlock, makeFieldOf, isWrapped);
+					var checked:Expr = checkExpr(e, true, allowBlock, makeFieldOf, isWrapped, filterType);
 					return { expr : EField(checked,field), pos : pos };
 				}else{
-					if (field == DESC_SHORTCUT) {
+					e = checkExpr(e, true, allowBlock, makeFieldOf, isWrapped, filterType);
+					if (!isWrapped.wrapped) {
+						// This is propbably a property of a special prop (e.g. 'text.length')
+						return expr;
+					}else if (field == DESC_SHORTCUT) {
 						return macro $e.desc();
 					}else {
 						// wrap prop access in child() call
-						trace("child: "+field);
-						e = checkExpr(e, true, allowBlock, makeFieldOf, isWrapped);
-						var check = createNameChecker(field, pos);
+						var nameE = {expr:EConst(CString(field)), pos:pos};
+						var check = macro function(xml:Xml, _i:Int):Bool { return xml.nodeName == $nameE; };
 						return macro $e.child($check);
 					}
 				}
 			case EBinop( op , e1 , e2 ):
-				trace("EBinop: "+e1);
-				return { expr:EBinop(op, doE4X(e1, wrapField, allowBlock, makeFieldOf), doE4X(e2, wrapField, allowBlock, makeFieldOf)), pos:pos };
+				return { expr:EBinop(op, doE4X(e1, wrapField, allowBlock, makeFieldOf, filterType), doE4X(e2, wrapField, allowBlock, makeFieldOf, filterType)), pos:pos };
 			default:
 				return expr;
 		}
 	}
-	private static function createNameChecker(name:String, pos:Position):Expr {
-		var nameE = {expr:EConst(CString(name)), pos:pos};
-		return macro function(xml:Xml, _i:Int):Bool { return xml.nodeName == $nameE; };
-	}
-	private static function checkParam(expr:Expr, attributeCall:Bool, isWrapped:IsWrappedFlag):Expr {
-		trace("checkParam: "+attributeCall+" "+expr);
+	private static function checkParam(expr:Expr, filterType:FilterType, isWrapped:IsWrappedFlag):Expr {
 		var pos = expr.pos;
 		var exprDef = expr.expr;
 		switch(exprDef) {
 			case EConst(c):
 				switch(c) {
 					case CString(s):
-						trace("    name: "+s);
-						var strE = {expr:EConst(CString(s)), pos:pos};
-						if(attributeCall){
-							expr = macro { return attName == $strE; };
-						}else {
-							expr = macro { return xml.nodeName == $strE; };
+						var strE = { expr:EConst(CString(s)), pos:pos };
+						switch(filterType) {
+							case Node, IndNode:
+								expr = macro { return xml.nodeName == $strE; };
+							case Attribute:
+								expr = macro { return attName == $strE; };
+							case Text:
+								expr = macro { return text == $strE; };
 						}
 					default:
-						expr = checkExpr(expr, true, true, "xml", isWrapped);
+						expr = checkExpr(expr, true, true, "xml", isWrapped, filterType);
 				}
 			case EFunction( name , f ):
-				trace("FUNK: "+name+" "+f.expr);
-				f.expr = checkExpr(f.expr, true, true, "xml", isWrapped);
+				f.expr = checkExpr(f.expr, true, true, "xml", isWrapped, filterType);
 				return { expr:EFunction(name, f), pos:pos };
 			case EReturn( e ):
-				expr = checkExpr(expr, true, false, "xml", isWrapped);
+				expr = checkExpr(expr, true, false, "xml", isWrapped, filterType);
 			default:
-				expr = checkExpr(expr, true, false, "xml", isWrapped);
+				expr = checkExpr(expr, true, false, "xml", isWrapped, filterType);
 				expr = macro return $expr;
 		}
-		trace("FIN PARAM");
-		if(attributeCall){
-			return macro function(attName:String, attVal:String, xml:Xml):Bool $expr;
-		}else {
-			return macro function(xml:Xml, _i:Int):Bool $expr;
+		switch(filterType) {
+			case IndNode:
+				return macro function(xml:Xml, _i:Int):Bool $expr;
+			case Node:
+				return macro function(xml:Xml):Bool $expr;
+			case Attribute:
+				return macro function(attName:String, attVal:String, xml:Xml):Bool $expr;
+			case Text:
+				return macro function(text:Null<String>, xml:Xml):Bool $expr;
+		}
+	}
+	private static function isSpecialProp(filterType:FilterType, propName:String):Bool {
+		switch(filterType) {
+			case IndNode:
+				return propName=="_i";
+			case Node:
+				return false;
+			case Attribute:
+				return propName=="attName" || propName=="attVal";
+			case Text:
+				return propName=="text";
 		}
 	}
 	
@@ -532,6 +546,16 @@ class E4X
 	#end
 }
 
+
+#if macro
 typedef IsWrappedFlag = {
 	var wrapped:Bool;
 }
+
+enum FilterType {
+	IndNode;
+	Node;
+	Attribute;
+	Text;
+}
+#end
