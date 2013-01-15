@@ -65,11 +65,17 @@ class XmlCombinerShell {
 				add(rootFile, outputFile, withinDirectory);
 			}
 			
-			Sys.println("Combining XML: " + rootFile);
+			Sys.println("\nCombining XML: ");
 			
 			_xmlCombiner.startCombine();
 			while (!_xmlCombiner.isComplete()) {
-				Sys.print(_xmlCombiner.currentTask.getRootFile() + "\r");
+				var print:String = "";
+				if (_xmlCombiner.getTaskCount() > 1) {
+					print += "(" + _xmlCombiner.getCurrTask() + "/" + _xmlCombiner.getTaskCount() + ") ";
+				}
+				var perc:Int = Std.int((_xmlCombiner.currentTask.getProgress() / _xmlCombiner.currentTask.getTotal()) * 100);
+				print += _xmlCombiner.currentTask.getRootFile() + " (" + perc + "%)";
+				Sys.print(print + "\r");
 				Sys.sleep(1);
 			}
 		}else {

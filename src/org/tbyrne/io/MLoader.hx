@@ -1,6 +1,5 @@
 package org.tbyrne.io;
 
-import haxe.io.Input;
 import mloader.Loader;
 import mloader.LoaderCache;
 import mloader.XmlLoader;
@@ -57,8 +56,8 @@ class Input<T> implements IInput<T> {
 	public var loader:Loader<T>;
 	
 	private var _inputState:InputState;
-	private var _progress:Float;
-	private var _total:Float;
+	private var _progress:Float = 0;
+	private var _total:Float = 100;
 	
 	public function new(type:Dynamic, loader:Loader<T>) {
 		this.loader = loader;
@@ -67,10 +66,12 @@ class Input<T> implements IInput<T> {
 		loader.loaded.add(onLoadedStatus);
 	}
 	
-	private function onLoadedStatus(event:Event<Loader<T>, LoaderEventType>):Void {
+	private function onLoadedStatus(event:Event < Loader<T>, LoaderEventType > ):Void {
+		Sys.println(event.type);
 		switch(event.type) {
 			case LoaderEventType.Start:
 				setState(InputState.Loading);
+				setProgress(0, 100);
 				
 			case LoaderEventType.Cancel:
 				setState(InputState.Unloaded);
@@ -120,6 +121,6 @@ class Input<T> implements IInput<T> {
 		return loader.content;
 	}
 	public function read():Void {
-		throw "Not yet implemented";
+		loader.load();
 	}
 }

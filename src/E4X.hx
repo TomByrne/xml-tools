@@ -13,7 +13,7 @@ import haxe.macro.Context;
 class E4X 
 {
 	@:macro public static function x(expr:Expr):Expr {
-		return doE4X(expr, true, false, null, null);
+		return doE4X(expr, true, false, null, true, null);
 	}
 	
 	#if macro
@@ -24,10 +24,10 @@ class E4X
 	private static var TEXT_METHOD:String = "text";
 	
 	
-	public static function doE4X(expr:Expr, wrapField:Bool, allowBlock:Bool, makeFieldOf:String, filterType:Null<FilterType>):Expr {
+	public static function doE4X(expr:Expr, wrapField:Bool, allowBlock:Bool, xmlParam:String, doXmlProps:Bool, filterType:Null<FilterType>):Expr {
 		var wrapInfo:WrapInfo = { wrapped:false, type:null };
-		expr = checkExpr(expr, wrapField, allowBlock, makeFieldOf, wrapInfo, filterType);
-		if (wrapInfo.wrapped && !isE4XPropAccess(expr)) {
+		expr = checkExpr(expr, wrapField, allowBlock, xmlParam, doXmlProps, wrapInfo, filterType);
+		if (wrapInfo.wrapped && !isE4XFinalAccess(expr)) {
 			var pos = Context.currentPos();
 			if(filterType!=null){
 				return macro E4X.doHas($expr);
@@ -53,14 +53,14 @@ class E4X
 		 * Wraps expressions in functions  - i.e. xml.desc(a("id")!=null)) -> xml.desc(function(xml:Xml, i:Int):Bool{return xml.a("id")!=null;})
 		 * Converts underscore to descendants call - i.e. xml._ -> xml.desc()        &        xml._(a("id")!=null) ->  xml.desc(function(xml:Xml, i:Int):Bool{return xml.a("id")!=null;})
 	 */
-	private static function checkExpr(expr:Expr, wrapField:Bool, allowBlock:Bool, makeFieldOf:String, wrapInfo:WrapInfo, filterType:Null<FilterType>):Expr {
+	private static function checkExpr(expr:Expr, wrapField:Bool, allowBlock:Bool, xmlParam:String, doXmlProps:Bool, wrapInfo:WrapInfo, filterType:Null<FilterType>):Expr {
 		var pos = expr.pos;
 		var exprDef = expr.expr;
 		switch(exprDef) {
 			case EBlock(eArr):
 				if (allowBlock) {
 					for (i in 0 ... eArr.length) {
-						eArr[i] = doE4X(eArr[i], wrapField, allowBlock, makeFieldOf, filterType);
+						eArr[i] = doE4X(eArr[i], wrapField, allowBlock, xmlParam, doXmlProps, filterType);
 					}
 					return { expr:EBlock(eArr), pos:pos };
 				}else{
@@ -81,43 +81,45 @@ class E4X
 						}else if (field == TEXT_METHOD) {
 							newFilterType = Text;
 						}
+						e = checkExpr(e, false, allowBlock, xmlParam, doXmlProps, wrapInfo, filterType);
 					case EConst(c):
-						switch(c) {
-							case CIdent(s):
-								if (s == DESC_SHORTCUT) {
-									// change function calls from '_' to 'desc'
-									e.expr = EConst(CIdent(DESC_METHOD));
-									newFilterType = Node;
-								}else if (s == DESC_METHOD) {
-									newFilterType = Node;
-								}else if (s == ATTR_METHOD) {
-									newFilterType = Attribute;
-								}else if (s == TEXT_METHOD) {
-									newFilterType = Text;
-								}
-							default: // ignore
+						if(xmlParam!=null){
+							switch(c) {
+								case CIdent(s):
+									if (s == DESC_SHORTCUT) {
+										// change function calls from '_' to 'desc'
+										e.expr = EConst(CIdent(DESC_METHOD));
+										newFilterType = Node;
+									}else if (s == DESC_METHOD) {
+										newFilterType = Node;
+									}else if (s == ATTR_METHOD) {
+										newFilterType = Attribute;
+									}else if (s == TEXT_METHOD) {
+										newFilterType = Text;
+									}
+									if (newFilterType != null) {
+										wrapInfo.wrapped = true;
+										e = { expr:EField( { expr : ECall( { expr : EField( { expr : EConst(CIdent("E4X")), pos : pos }, "getNew"), pos : pos }, [ { expr : EConst(CIdent(xmlParam)), pos : pos } ]), pos : pos }, s), pos:pos };
+									}
+								default: // ignore
+							}
 						}
 					default:
 						// ignore
 				}
-				if(newFilterType!=null && wrapInfo.type==null)
-					wrapInfo.type = newFilterType;
+				wrapInfo.type = newFilterType;
 					
 				for (i in 0 ... params.length) {
 					params[i] = checkParam(params[i], newFilterType, wrapInfo);
 				}
-				return { expr : ECall( checkExpr(e, false, allowBlock, makeFieldOf, wrapInfo, filterType), params), pos : pos };
+				return { expr : ECall( e, params), pos : pos };
 			case EConst(c):
 				switch(c) {
 					case CIdent(s):
-						if (s == "null" || (filterType!=null && isSpecialProp(filterType, s))) {
-							return expr;
-						}else if (makeFieldOf != null) {
-							expr = { expr:EField( { expr:EConst(CIdent(makeFieldOf)), pos:pos }, s), pos:pos };
-							return checkExpr(expr, wrapField, allowBlock, null, wrapInfo, filterType);
-						}else if (!wrapField) {
-							return expr;
-						}else if (filterType == null || s == "xml") {
+						if (xmlParam != null && doXmlProps && isXmlProp(s)) {
+							expr = { expr:EField( { expr:EConst(CIdent(xmlParam)), pos:pos }, s), pos:pos };
+							return checkExpr(expr, wrapField, allowBlock, xmlParam, false, wrapInfo, filterType);
+						}else if (wrapField && (filterType == null || s == xmlParam)) {
 							wrapInfo.wrapped = true;
 							return macro E4X.getNew($expr);
 						}else {
@@ -128,18 +130,17 @@ class E4X
 				}
 			case EField(e, field):
 				if (!wrapField) {
-					var checked:Expr = checkExpr(e, true, allowBlock, makeFieldOf, wrapInfo, filterType);
+					var checked:Expr = checkExpr(e, true, allowBlock, xmlParam, doXmlProps, wrapInfo, filterType);
 					return { expr : EField(checked,field), pos : pos };
 				}else {
-					if(!isXmlPropAccess(field, e, filterType)){
-						e = checkExpr(e, true, allowBlock, makeFieldOf, wrapInfo, filterType);
+					if(!isXmlPropAccess(field, e, filterType, xmlParam)){
+						e = checkExpr(e, true, allowBlock, xmlParam, doXmlProps, wrapInfo, filterType);
 					}
 					if (!wrapInfo.wrapped) {
 						// This is propbably a property of a special prop (e.g. 'text.length')
 						return expr;
 					}else{
-						if(wrapInfo.type==null)
-							wrapInfo.type = Node;
+						wrapInfo.type = Node;
 						
 						if (field == DESC_SHORTCUT) {
 							return macro $e.desc();
@@ -153,13 +154,13 @@ class E4X
 				}
 			case EReturn(e):
 				if (e != null) {
-					e =  doE4X(e, wrapField, allowBlock, makeFieldOf, filterType);
+					e =  doE4X(e, wrapField, allowBlock, xmlParam, doXmlProps, filterType);
 					return macro return $e;
 				}else {
 					return expr;
 				}
 			case EBinop( op , e1 , e2 ):
-				return { expr:EBinop(op, doE4X(e1, wrapField, allowBlock, makeFieldOf, filterType), doE4X(e2, wrapField, allowBlock, makeFieldOf, filterType)), pos:pos };
+				return { expr:EBinop(op, doE4X(e1, wrapField, allowBlock, xmlParam, doXmlProps, filterType), doE4X(e2, wrapField, allowBlock, xmlParam, doXmlProps, filterType)), pos:pos };
 			default:
 				return expr;
 		}
@@ -173,22 +174,23 @@ class E4X
 					case CString(s), CIdent(s):
 						switch(filterType) {
 							case Node, IndNode:
-								expr = macro { return xml.nodeName == $expr; };
+								expr = macro { return xml.nodeType == Xml.Element && xml.nodeName == $expr; };
 							case Attribute:
 								expr = macro { return attName == $expr; };
 							case Text:
 								expr = macro { return text == $expr; };
 						}
 					default:
-						expr = checkExpr(expr, true, true, "xml", wrapInfo, filterType);
+						expr = checkExpr(expr, true, true, "xml", true, wrapInfo, filterType);
 				}
 			case EFunction( name , f ):
-				f.expr = checkExpr(f.expr, true, true, "xml", wrapInfo, filterType);
+				var xmlName:String = f.params[0].name;
+				f.expr = checkExpr(f.expr, true, true, xmlName, true, wrapInfo, filterType);
 				return { expr:EFunction(name, f), pos:pos };
 			case EReturn( e ):
-				expr = checkExpr(expr, true, false, "xml", wrapInfo, filterType);
+				expr = checkExpr(expr, true, false, "xml", true, wrapInfo, filterType);
 			default:
-				expr = checkExpr(expr, true, false, "xml", wrapInfo, filterType);
+				expr = checkExpr(expr, true, false, "xml", true, wrapInfo, filterType);
 				expr = macro return $expr;
 		}
 		switch(filterType) {
@@ -202,32 +204,13 @@ class E4X
 				return macro function(text:Null<String>, xml:Xml):Bool $expr;
 		}
 	}
-	private static function isSpecialProp(filterType:FilterType, propName:String):Bool {
-		switch(filterType) {
-			case IndNode:
-				return propName=="_i";
-			case Node:
-				return false;
-			case Attribute:
-				return propName=="attName" || propName=="attVal";
-			case Text:
-				return propName=="text";
-		}
-	}
-	private static function isXmlPropAccess(field:String, e:Expr, filterType:FilterType):Bool {
+	private static function isXmlPropAccess(field:String, e:Expr, filterType:FilterType, xmlParam:String):Bool {
 		switch(e.expr) {
 			case EConst(c):
 				switch(c) {
 					case CIdent(s):
-						if (filterType == null || s == "xml") {
-							if (field == "nodeName" || field == "nodeType"   || field == "nodeValue" ||
-								field == "parent"   || field == "addChild"   || field == "attributes" ||
-								field == "elements"   || field == "elementsNamed"   || field == "exists" ||
-								field == "firstChild"   || field == "firstElement"   || field == "get" ||
-								field == "insertChild"   || field == "iterator"   || field == "remove" ||
-								field == "removeChild"   || field == "set"   || field == "toString") {
-								return true;
-							}
+						if (filterType == null || s == xmlParam) {
+							return isXmlProp(field);
 						}
 					default:
 						// ignore
@@ -237,12 +220,20 @@ class E4X
 		}
 		return false;
 	}
-	private static function isE4XPropAccess(e:Expr):Bool {
+	private static function isXmlProp(field:String):Bool {
+		return (field == "nodeName" || field == "nodeType"   || field == "nodeValue" ||
+				field == "parent"   || field == "addChild"   || field == "attributes" ||
+				field == "elements"   || field == "elementsNamed"   || field == "exists" ||
+				field == "firstChild"   || field == "firstElement"   || field == "get" ||
+				field == "insertChild"   || field == "iterator"   || field == "remove" ||
+				field == "removeChild"   || field == "set"   || field == "toString");
+	}
+	private static function isE4XFinalAccess(e:Expr):Bool {
 		switch(e.expr) {
 			case ECall(e2, p):
 				switch(e2.expr) {
 					case EField(e3, field):
-						if (field == "exec" || field == "has") {
+						if (field == "retNodes" || field == "retAttrib" || field == "retText" || field == "has") {
 							return true;
 						}
 					default:
@@ -320,7 +311,7 @@ class E4X
 		Creates new walking operation.
 		<p class="code">param</p>	value	The XML document or fragment to start walking from.
 		Note: if XML document is passed, the firstElement is used.
-		<p class="code">return</p> new walker, you can chain the further calls to it.
+		<p class="code">return</p> new E4X, you can chain the further calls to it.
 	**/
 	//public static function walk(value:Xml):E4X { return new E4X(value); }
 	
@@ -329,7 +320,7 @@ class E4X
 		<p class="code">param</p>	?x	A callback to execute on each <b>child</b> node.
 		Note: the child list is not copied.
 		Note: if no callback provided, all <b>child</b> nodes are included in result.
-		<p class="code">return</p> new walker, you can chain the further calls to it.
+		<p class="code">return</p> new E4X, you can chain the further calls to it.
 	**/
 	public function child(?x:Null<Xml>->Int->Bool):E4X
 	{
@@ -375,7 +366,7 @@ class E4X
 		<p class="code">param</p>	?x	A callback to execute on each <b>descendant</b> node.
 		Note: the child list is not copied.
 		Note: if no callback provided, all <b>descendant</b> nodes are included in result.
-		<p class="code">return</p> new walker, you can chain the further calls to it.
+		<p class="code">return</p> new E4X, you can chain the further calls to it.
 	**/
 	public function desc(?x:Null<Xml>->Bool):E4X
 	{
@@ -422,7 +413,7 @@ class E4X
 		<p class="code">param</p>	?x	A callback to execute on each <b>parent</b> node.
 		Note: the child list is not copied.
 		Note: if no callback provided, all <b>parent</b> nodes are included in result.
-		<p class="code">return</p> new walker, you can chain the further calls to it.
+		<p class="code">return</p> new E4X, you can chain the further calls to it.
 	**/
 	public function ances(?x:Null<Xml>->Int->Bool):E4X
 	{
@@ -470,7 +461,7 @@ class E4X
 		<p class="code">param</p>	?x	A callback to execute on each <b>attribute</b> node.
 		Note: the child list is not copied.
 		Note: if no callback provided, all <b>attribute</b> nodes are included in result.
-		<p class="code">return</p> new walker, you can chain the further calls to it.
+		<p class="code">return</p> new E4X, you can chain the further calls to it.
 	**/
 	public function a(?x:String->String->Xml->Bool):E4X
 	{
@@ -538,7 +529,7 @@ class E4X
 		<p class="code">param</p>	?x	A callback to execute on each <b>text</b> node.
 		Note: the child list is not copied.
 		Note: if no callback provided, all <b>text</b> nodes are included in result.
-		<p class="code">return</p> new walker, you can chain the further calls to it.
+		<p class="code">return</p> new E4X, you can chain the further calls to it.
 	**/
 	public function text(?x:Null<String>->Xml->Bool):E4X
 	{

@@ -4,7 +4,7 @@
   <output>
     <movie outputType="Application" />
     <movie input="" />
-    <movie path="XmlCombiner.n" />
+    <movie path="../bin/XmlCombiner.n" />
     <movie fps="30" />
     <movie width="800" />
     <movie height="600" />
@@ -47,8 +47,8 @@
   <!-- Other project options -->
   <options>
     <option showHiddenPaths="False" />
-    <option testMovie="Custom" />
-    <option testMovieCommand="" />
+    <option testMovie="OpenDocument" />
+    <option testMovieCommand="../testBin/Test.bat" />
   </options>
   <!-- Plugin storage -->
   <storage />
