@@ -4,7 +4,7 @@
   <output>
     <movie outputType="Application" />
     <movie input="" />
-    <movie path="../bin/XmlCombiner.n" />
+    <movie path="..\bin\XmlCombiner.n" />
     <movie fps="30" />
     <movie width="800" />
     <movie height="600" />
@@ -22,7 +22,7 @@
   <build>
     <option directives="code_completion" />
     <option flashStrict="False" />
-    <option mainClass="E4XTest" />
+    <option mainClass="XmlCombinerShell" />
     <option enabledebug="True" />
     <option additional="" />
   </build>

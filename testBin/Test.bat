@@ -1,4 +1,4 @@
-neko ../bin/XmlCombiner.n testCombine.xml -o testCombine-done.xml -d ../testBin/
+neko ../bin/XmlCombiner.n root.xml -o ../textBin/test1-done.xml -d ../testBin/test1
 
 
 pause

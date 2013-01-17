@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root xmlns:xcf="http://tbyrne.org/XCF">
+	<xcf:xml url="child.xml"/>
+<childRoot xmlns:xcf="http://tbyrne.org/XCF">
+	<childNode/>
+</childRoot></root>

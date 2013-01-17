@@ -3,6 +3,10 @@ import org.tbyrne.io.MLoader;
 import org.tbyrne.xmlCombiner.IXmlCombineTask;
 import org.tbyrne.xmlCombiner.XmlCombineTask;
 import org.tbyrne.xmlCombiner.XmlCombiner;
+import cmtc.ds.hash.ObjectHash;
+import sys.io.File;
+import sys.io.FileOutput;
+
 class XmlCombinerShell {
 	
 	/**
@@ -16,9 +20,10 @@ class XmlCombinerShell {
    
    
    private var _xmlCombiner:XmlCombiner;
-   
+   private var _taskToOutput:ObjectHash<IXmlCombineTask, String>;
    
    public function new() {
+		_taskToOutput = new ObjectHash<IXmlCombineTask, String>();
 		_xmlCombiner = new XmlCombiner(new MLoader());
 		new XmlCombineTask();
 		
@@ -67,17 +72,32 @@ class XmlCombinerShell {
 			
 			Sys.println("\nCombining XML: ");
 			
-			_xmlCombiner.startCombine();
-			while (!_xmlCombiner.isComplete()) {
-				var print:String = "";
-				if (_xmlCombiner.getTaskCount() > 1) {
-					print += "(" + _xmlCombiner.getCurrTask() + "/" + _xmlCombiner.getTaskCount() + ") ";
+			var i:Int = 0;
+			var total:Int = _xmlCombiner.getTaskCount();
+			while (i < total) {
+				var task:IXmlCombineTask = _xmlCombiner.getTask(i);
+				task.startCombine();
+				while (task.getState()!=XmlCombineTaskState.Failed && task.getState()!=XmlCombineTaskState.Succeeded) {
+					var print:String = "";
+					if (total > 1) {
+						print += "(" + i + "/" + total + ") ";
+					}
+					var perc:Int = Std.int((task.getProgress() / task.getTotal()) * 100);
+					print += task.getRootFile() + " (" + perc + "%)";
+					Sys.print(print + "\r");
+					Sys.sleep(1);
 				}
-				var perc:Int = Std.int((_xmlCombiner.currentTask.getProgress() / _xmlCombiner.currentTask.getTotal()) * 100);
-				print += _xmlCombiner.currentTask.getRootFile() + " (" + perc + "%)";
-				Sys.print(print + "\r");
-				Sys.sleep(1);
+				if(task.getState()==XmlCombineTaskState.Succeeded){
+					var outputFile:String = _taskToOutput.get(task);
+					var output:FileOutput = File.write(outputFile, false);
+					output.writeString(task.getData().toString());
+					output.close();
+					//File.saveContent(outputFile, task.getData().toString());
+				}else {
+					Sys.println("XML Combine Failed: "+task.getRootFile());
+				}
 			}
+			Sys.println("Finished Combining\n");
 		}else {
 			printHelp();
 		}
@@ -88,7 +108,7 @@ class XmlCombinerShell {
 		}
 		
 		var task:IXmlCombineTask = _xmlCombiner.add(rootFile, withinDirectory);
-		
+		_taskToOutput.set(task, outputFile);
 	}
 	public function initialArgError():Void {
 		Sys.println("First argument for each entry must be a root-file path.");

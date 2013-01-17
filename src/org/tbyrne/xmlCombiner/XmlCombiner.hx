@@ -60,6 +60,9 @@ class XmlCombiner
 	public function getTaskCount():Int {
 		return _tasks.length;
 	}
+	public function getTask(i:Int):IXmlCombineTask {
+		return _tasks[i];
+	}
 	
 	public function add(rootFile:String, ?withinDir:String):IXmlCombineTask {
 		var ret:XmlCombineTask = new XmlCombineTask(_inputProvider, rootFile, withinDir);

@@ -11,6 +11,7 @@ interface IXmlCombineTask
 	public var progressChanged(get_progressChanged, null):Signal1<IXmlCombineTask>;
 	public var stateChanged(get_stateChanged, null):Signal1<IXmlCombineTask>;
 	
+	public function startCombine():Void;
 	
 	public function getState():XmlCombineTaskState;
 	public function getData():Xml;

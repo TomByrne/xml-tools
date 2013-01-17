@@ -63,6 +63,8 @@ class Input<T> implements IInput<T> {
 		this.loader = loader;
 		this.type = type;
 		
+		_inputState = InputState.Unloaded;
+		
 		loader.loaded.add(onLoadedStatus);
 	}
 	
@@ -121,6 +123,11 @@ class Input<T> implements IInput<T> {
 		return loader.content;
 	}
 	public function read():Void {
-		loader.load();
+		switch(_inputState) {
+			case InputState.Failed, InputState.Unloaded:
+				loader.load();
+			default:
+				//ignore
+		}
 	}
 }

@@ -29,7 +29,7 @@ class E4X
 		expr = checkExpr(expr, wrapField, allowBlock, xmlParam, doXmlProps, wrapInfo, filterType);
 		if (wrapInfo.wrapped && !isE4XFinalAccess(expr)) {
 			var pos = Context.currentPos();
-			if(filterType!=null){
+			if (filterType != null) {
 				return macro E4X.doHas($expr);
 			}else if(wrapInfo.type!=null){
 				switch(wrapInfo.type) {
@@ -190,7 +190,7 @@ class E4X
 			case EReturn( e ):
 				expr = checkExpr(expr, true, false, "xml", true, wrapInfo, filterType);
 			default:
-				expr = checkExpr(expr, true, false, "xml", true, wrapInfo, filterType);
+				expr = doE4X(expr, true, false, "xml", true, filterType);
 				expr = macro return $expr;
 		}
 		switch(filterType) {
@@ -297,8 +297,8 @@ class E4X
 	}
 	
 	public function setXml(xml:Xml):Void {
-		this._attributes = null;
-		
+		this._attributes = new Array<Hash<String>>();
+		this._texts = new Array<Null<String>>();
 		this._root = xml;
 		this._retState = E4XReturnState.Node;
 		this._current = new Array<Xml>();
@@ -327,7 +327,7 @@ class E4X
 		var it:Iterator<Null<Xml>> = this._current.iterator();
 		var itw:Iterator<Null<Xml>>;
 		var working:Array<Xml> = null;
-		var a:Array<Xml> = null;
+		var a:Array<Xml> = new Array<Xml>();
 		var node:Xml;
 		var i:Int = 0;
 		
@@ -346,7 +346,6 @@ class E4X
 			it = working.iterator();
 			while (it.hasNext())
 			{
-				if (a == null) a = new Array<Xml>();
 				node = it.next();
 				if (x != null)
 				{
@@ -372,7 +371,7 @@ class E4X
 	{
 		var it:Iterator<Null<Xml>> = this._current.iterator();
 		var working:Array<Xml> = null;
-		var a:Array<Xml> = null;
+		var a:Array<Xml> = new Array<Xml>();
 		var node:Xml;
 		
 		while (it.hasNext())
@@ -394,7 +393,6 @@ class E4X
 			it = working.iterator();
 			while (it.hasNext())
 			{
-				if (a == null) a = new Array<Xml>();
 				node = it.next();
 				if (x != null)
 				{
@@ -420,7 +418,7 @@ class E4X
 		var it:Iterator<Null<Xml>> = this._current.iterator();
 		var itw:Iterator<Null<Xml>>;
 		var working:Array<Xml> = null;
-		var a:Array<Xml> = null;
+		var a:Array<Xml> = new Array<Xml>();
 		var node:Xml;
 		var pnode:Xml;
 		var i:Int = 0;
@@ -441,7 +439,6 @@ class E4X
 			it = working.iterator();
 			while (it.hasNext())
 			{
-				if (a == null) a = new Array<Xml>();
 				node = it.next();
 				if (x != null)
 				{
@@ -469,10 +466,10 @@ class E4X
 		var ait:Iterator<String>;
 		var node:Xml;
 		var atts:Hash<String> = null;
-		var allatts:Array<Hash<String>> = null;
+		var allatts:Array<Hash<String>> = new Array<Hash<String>>();
 		var s:String;
 		var vs:String;
-		var a:Array<Xml> = null;
+		var a:Array<Xml> = new Array<Xml>();
 		
 		while (it.hasNext())
 		{
@@ -480,7 +477,6 @@ class E4X
 			if (node.nodeType != Xml.Element) continue;
 			ait = node.attributes();
 			atts = null;
-			if (allatts == null) allatts = new Array<Hash<String>>();
 			while (ait.hasNext())
 			{
 				if (x == null)
@@ -488,7 +484,6 @@ class E4X
 					if (atts == null) atts = new Hash<String>();
 					s = ait.next();
 					atts.set(s, node.get(s));
-					if (a == null) a = new Array<Xml>();
 					a.push(node);
 				}
 				else 
@@ -499,7 +494,6 @@ class E4X
 					{
 						if (atts == null) atts = new Hash<String>();
 						atts.set(s, vs);
-						if (a == null) a = new Array<Xml>();
 						a.push(node);
 					}
 				}
@@ -537,8 +531,8 @@ class E4X
 		var itt:Iterator<Null<Xml>>;
 		var itw:Iterator<Null<String>>;
 		var working:Array<Null<String>> = null;
-		var a:Array<Null<String>> = null;
-		var ca:Array<Xml> = null;
+		var a:Array<Null<String>> = new Array<Null<String>>();
+		var ca:Array<Xml> = new Array<Xml>();
 		var node:Xml;
 		var vnode:Xml;
 		var tnode:String;
@@ -557,7 +551,6 @@ class E4X
 					{
 						if (working == null) working = new Array<Null<String>>();
 						working.push(vnode.nodeValue);
-						if (ca == null) ca = new Array<Xml>();
 						ca.push(vnode);
 					}
 				}
@@ -566,7 +559,6 @@ class E4X
 			{
 				if (working == null) working = new Array<Null<String>>();
 				working.push(node.nodeValue);
-				if (ca == null) ca = new Array<Xml>();
 				ca.push(node);
 			}
 		}
@@ -575,7 +567,6 @@ class E4X
 			itw = working.iterator();
 			while (itw.hasNext())
 			{
-				if (a == null) a = new Array<Null<String>>();
 				tnode = itw.next();
 				if (x != null)
 				{
