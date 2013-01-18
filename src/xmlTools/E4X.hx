@@ -1,4 +1,4 @@
-package ;
+package xmlTools;
 import haxe.macro.Expr;
 import haxe.macro.Type;
 import haxe.macro.Context;

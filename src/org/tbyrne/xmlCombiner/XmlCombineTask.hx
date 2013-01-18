@@ -4,6 +4,7 @@ import haxe.xml.Fast;
 import msignal.Signal;
 import cmtc.ds.hash.ObjectHash;
 import org.tbyrne.io.IO;
+import xmlTools.E4X;
 
 import org.tbyrne.xmlCombiner.IXmlCombineTask;
 
@@ -140,7 +141,9 @@ class XmlCombineTask implements IXmlCombineTask  {
 		if(root.nodeName==xcfTag && root.get("url")!=null){
 			addResource(root);
 		}
-		if(allowCheck)checkState();
+		if (allowCheck) checkState();
+		
+		checkProgress();
 	}
 
 	private function addResource(node : Xml) : Void {
@@ -153,6 +156,7 @@ class XmlCombineTask implements IXmlCombineTask  {
 			list = [node];
 			_resourceToNode.set(resource, list);
 			resource.inputStateChanged.add(onInputStateChanged);
+			resource.inputProgChanged.add(onProgressChanged);
 		}else {
 			list.push(node);
 		}
@@ -229,6 +233,18 @@ class XmlCombineTask implements IXmlCombineTask  {
 			}
 		}
 		setState(state);
+	}
+	private function onProgressChanged(from:IInput<Xml>):Void {
+		checkProgress();
+	}
+	private function checkProgress() : Void {
+		var progress:Float = 0;
+		var total:Float = 0;
+		for (resource in _resources) {
+			progress += resource.getInputProgress();
+			total += resource.getInputTotal();
+		}
+		setProgress(progress, total);
 	}
 	/*private function checkAllLoaded() : Void {
 		var allLoaded:Bool = true;

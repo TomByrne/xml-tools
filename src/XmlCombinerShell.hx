@@ -6,6 +6,8 @@ import org.tbyrne.xmlCombiner.XmlCombiner;
 import cmtc.ds.hash.ObjectHash;
 import sys.io.File;
 import sys.io.FileOutput;
+import sys.FileSystem;
+import xmlTools.XmlPrettyPrint;
 
 class XmlCombinerShell {
 	
@@ -66,38 +68,45 @@ class XmlCombinerShell {
 					}
 				}
 			}
-			if (rootFile!=null) {
+			if (rootFile != null) {
+				outputFile = FileSystem.fullPath(outputFile);
 				add(rootFile, outputFile, withinDirectory);
 			}
 			
 			Sys.println("\nCombining XML: ");
 			
-			var i:Int = 0;
 			var total:Int = _xmlCombiner.getTaskCount();
-			while (i < total) {
+			for (i in 0 ... total) {
+				Sys.print("\n");
 				var task:IXmlCombineTask = _xmlCombiner.getTask(i);
 				task.startCombine();
-				while (task.getState()!=XmlCombineTaskState.Failed && task.getState()!=XmlCombineTaskState.Succeeded) {
+				var tried:Bool = false;
+				while (!tried || (task.getState() != XmlCombineTaskState.Failed && task.getState() != XmlCombineTaskState.Succeeded)) {
+					tried = true;
 					var print:String = "";
 					if (total > 1) {
-						print += "(" + i + "/" + total + ") ";
+						print += "(" + (i+1) + "/" + total + ") ";
 					}
 					var perc:Int = Std.int((task.getProgress() / task.getTotal()) * 100);
 					print += task.getRootFile() + " (" + perc + "%)";
-					Sys.print(print + "\r");
-					Sys.sleep(1);
+					Sys.print(print);
+					
+					if (task.getState() != XmlCombineTaskState.Failed && task.getState() != XmlCombineTaskState.Succeeded) {
+						Sys.sleep(1);
+					}
 				}
 				if(task.getState()==XmlCombineTaskState.Succeeded){
 					var outputFile:String = _taskToOutput.get(task);
 					var output:FileOutput = File.write(outputFile, false);
-					output.writeString(task.getData().toString());
+					var printed:String = XmlPrettyPrint.print(task.getData());
+					output.writeString(printed);
 					output.close();
 					//File.saveContent(outputFile, task.getData().toString());
 				}else {
 					Sys.println("XML Combine Failed: "+task.getRootFile());
 				}
 			}
-			Sys.println("Finished Combining\n");
+			Sys.println("\nFinished Combining");
 		}else {
 			printHelp();
 		}

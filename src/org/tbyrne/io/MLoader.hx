@@ -14,6 +14,7 @@ class MLoader implements IInputProvider
 	private var loaderCache:LoaderCache;
 	
 	public function new() {
+		trace("MLoader: ");
 		uriLookup = new Hash();
 		loaderCache = new LoaderCache();
 	}
@@ -27,7 +28,7 @@ class MLoader implements IInputProvider
 		
 		untyped {
 			
-			if(type==Xml) {
+			if (type == Xml) {
 				var ret = new Input(type, new XmlLoader(uri));
 				uriLookup.set(uri, ret);
 				return ret;
@@ -41,7 +42,7 @@ class MLoader implements IInputProvider
 		var castInput:Input<T> = cast input;
 		
 		castInput.refCount--;
-		if (castInput.refCount==0) {
+		if (castInput.refCount == 0) {
 			uriLookup.remove(castInput.loader.url);
 		}
 	}
@@ -69,7 +70,6 @@ class Input<T> implements IInput<T> {
 	}
 	
 	private function onLoadedStatus(event:Event < Loader<T>, LoaderEventType > ):Void {
-		Sys.println(event.type);
 		switch(event.type) {
 			case LoaderEventType.Start:
 				setState(InputState.Loading);
@@ -85,6 +85,7 @@ class Input<T> implements IInput<T> {
 				setState(InputState.Failed);
 				
 			case LoaderEventType.Complete:
+				setProgress(100, 100);
 				setState(InputState.Loaded);
 		}
 	}

@@ -1,6 +1,7 @@
 package ;
 
 import haxe.macro.Expr;
+import xmlTools.E4X;
 /**
  * ...
  * @author Tom Byrne
