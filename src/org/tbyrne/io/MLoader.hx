@@ -2,6 +2,7 @@ package org.tbyrne.io;
 
 import mloader.Loader;
 import mloader.LoaderCache;
+import mloader.StringLoader;
 import mloader.XmlLoader;
 import org.tbyrne.io.IO;
 import msignal.Signal;
@@ -26,7 +27,7 @@ class MLoader implements IInputProvider
 			return cast old;
 		}
 		
-		untyped {
+		/*untyped {
 			
 			if (type == Xml) {
 				var ret = new Input(type, new XmlLoader(uri));
@@ -36,7 +37,10 @@ class MLoader implements IInputProvider
 				throw "MLoader doesn't support resources of type: " + type;
 			}
 		
-		}
+		}*/
+		var ret = new Input(type, new StringLoader(uri));
+		uriLookup.set(uri, ret);
+		return ret;
 	}
 	public function returnInput<T>(input:IInput<T>):Void {
 		var castInput:Input<T> = cast input;
@@ -54,13 +58,13 @@ class Input<T> implements IInput<T> {
 	
 	public var type:Dynamic;
 	public var refCount:Int = 1;
-	public var loader:Loader<T>;
+	public var loader:Loader<String>;
 	
 	private var _inputState:InputState;
 	private var _progress:Float = 0;
 	private var _total:Float = 100;
 	
-	public function new(type:Dynamic, loader:Loader<T>) {
+	public function new(type:Dynamic, loader:Loader<String>) {
 		this.loader = loader;
 		this.type = type;
 		
@@ -69,7 +73,7 @@ class Input<T> implements IInput<T> {
 		loader.loaded.add(onLoadedStatus);
 	}
 	
-	private function onLoadedStatus(event:Event < Loader<T>, LoaderEventType > ):Void {
+	private function onLoadedStatus(event:Event < Loader<String>, LoaderEventType > ):Void {
 		switch(event.type) {
 			case LoaderEventType.Start:
 				setState(InputState.Loading);
@@ -121,7 +125,12 @@ class Input<T> implements IInput<T> {
 	}
 	
 	public function getData():T {
-		return loader.content;
+		switch(type) {
+			case Xml:
+				return untyped Xml.parse(loader.content);
+			default:
+				throw "Unknown content type";
+		}
 	}
 	public function read():Void {
 		switch(_inputState) {

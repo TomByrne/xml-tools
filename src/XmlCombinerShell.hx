@@ -1,8 +1,8 @@
 
 import org.tbyrne.io.MLoader;
-import org.tbyrne.xmlCombiner.IXmlCombineTask;
-import org.tbyrne.xmlCombiner.XmlCombineTask;
-import org.tbyrne.xmlCombiner.XmlCombiner;
+import xmlTools.combine.IXmlCombineTask;
+import xmlTools.combine.XmlCombineTask;
+import xmlTools.combine.XmlCombiner;
 import cmtc.ds.hash.ObjectHash;
 import sys.io.File;
 import sys.io.FileOutput;
@@ -80,28 +80,37 @@ class XmlCombinerShell {
 				Sys.print("\n");
 				var task:IXmlCombineTask = _xmlCombiner.getTask(i);
 				task.startCombine();
-				var tried:Bool = false;
-				while (!tried || (task.getState() != XmlCombineTaskState.Failed && task.getState() != XmlCombineTaskState.Succeeded)) {
-					tried = true;
+				var finished:Bool = false;
+				while (!finished) {
 					var print:String = "";
 					if (total > 1) {
 						print += "(" + (i+1) + "/" + total + ") ";
 					}
-					var perc:Int = Std.int((task.getProgress() / task.getTotal()) * 100);
+					var total:Float = task.getTotal();
+					var perc:Int;
+					if(total==0){
+						perc = 0;
+					}else {
+						perc = Std.int((task.getProgress() / total) * 100);
+					}
 					print += task.getRootFile() + " (" + perc + "%)";
-					Sys.print(print);
 					
-					if (task.getState() != XmlCombineTaskState.Failed && task.getState() != XmlCombineTaskState.Succeeded) {
+					var state = task.getState();
+					if (state == XmlCombineTaskState.Failed) {
+						Sys.print(print + " - failed\r");
+						finished = true;
+					}else if(state==XmlCombineTaskState.Succeeded) {
+						Sys.print(print + " - success\r");
+						finished = true;
+					}else {
+						Sys.print(print + "\r");
 						Sys.sleep(1);
 					}
 				}
-				if(task.getState()==XmlCombineTaskState.Succeeded){
+				if (task.getState() == XmlCombineTaskState.Succeeded) {
 					var outputFile:String = _taskToOutput.get(task);
-					var output:FileOutput = File.write(outputFile, false);
 					var printed:String = XmlPrettyPrint.print(task.getData());
-					output.writeString(printed);
-					output.close();
-					//File.saveContent(outputFile, task.getData().toString());
+					File.saveContent(outputFile, printed);
 				}else {
 					Sys.println("XML Combine Failed: "+task.getRootFile());
 				}

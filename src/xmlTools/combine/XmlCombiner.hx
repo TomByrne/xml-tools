@@ -1,10 +1,10 @@
-package org.tbyrne.xmlCombiner;
+package xmlTools.combine;
 
 import haxe.io.Bytes;
 import msignal.Signal;
 import org.tbyrne.io.IO;
 
-import org.tbyrne.xmlCombiner.IXmlCombineTask;
+import xmlTools.combine.IXmlCombineTask;
 /**
  * ...
  * @author Tom Byrne

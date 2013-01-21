@@ -1,4 +1,4 @@
-package org.tbyrne.xmlCombiner;
+package xmlTools.combine;
 
 import haxe.xml.Fast;
 import msignal.Signal;
@@ -6,7 +6,7 @@ import cmtc.ds.hash.ObjectHash;
 import org.tbyrne.io.IO;
 import xmlTools.E4X;
 
-import org.tbyrne.xmlCombiner.IXmlCombineTask;
+import xmlTools.combine.IXmlCombineTask;
 
 @:build(LazyInst.check())
 class XmlCombineTask implements IXmlCombineTask  {
@@ -189,7 +189,6 @@ class XmlCombineTask implements IXmlCombineTask  {
 		checkState();
 	}
 	private function combineNode(childNode:Xml, referenceNode:Xml):Void {
-		
 		if(referenceNode.get("inParent")=="true"){
 			var atts:Iterator<String> = childNode.attributes();
 			for(att in atts){
@@ -216,7 +215,21 @@ class XmlCombineTask implements IXmlCombineTask  {
 	}
 	private function checkState() : Void {
 		var state:XmlCombineTaskState = XmlCombineTaskState.Waiting;
+		if(_rootResource!=null){
+			switch(_rootResource.inputState) {
+				case InputState.Loaded:
+					state = XmlCombineTaskState.Succeeded;
+				case InputState.Loading:
+					state = XmlCombineTaskState.Working;
+				case InputState.Failed:
+					setState(XmlCombineTaskState.Failed);
+					return;
+				default:
+					// ignore
+			}
+		}
 		if(_resources!=null){
+			state = XmlCombineTaskState.Waiting;
 			for (resource in _resources) {
 				switch(resource.inputState) {
 					case InputState.Loaded:

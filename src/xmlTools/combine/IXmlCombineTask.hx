@@ -1,4 +1,4 @@
-package org.tbyrne.xmlCombiner;
+package xmlTools.combine;
 
 import msignal.Signal;
 /**

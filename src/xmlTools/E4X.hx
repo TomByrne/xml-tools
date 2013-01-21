@@ -380,7 +380,8 @@ class E4X
 			if (node.nodeType == Xml.Element)
 			{
 				if (working == null) working = new Array<Xml>();
-				working = working.concat(this.rec(node));
+				var rec = this.rec(node);
+				if(rec!=null)working = working.concat(rec);
 			}
 			else
 			{
@@ -649,7 +650,7 @@ class E4X
 			n = it.next();
 			tmp = this.rec(n);
 			ret.push(n);
-			if (tmp != null) ret = ret.concat(this.rec(n));
+			if (tmp != null) ret = ret.concat(tmp);
 		}
 		return ret;
 	}
