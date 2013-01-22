@@ -1,7 +1,10 @@
 package xmlTools;
+
+#if macro
 import haxe.macro.Expr;
 import haxe.macro.Type;
 import haxe.macro.Context;
+#end
 
 /**
  * Based on http://code.google.com/p/e4xu/source/browse/trunk/haxe/src/org/wvxvws/xml/W.hx
@@ -30,7 +33,16 @@ class E4X
 		if (wrapInfo.wrapped && !isE4XFinalAccess(expr)) {
 			var pos = Context.currentPos();
 			if (filterType != null) {
-				return macro E4X.doHas($expr);
+				switch(wrapInfo.type) {
+					case Node, IndNode:
+						return macro E4X.doHasNodes($expr);
+					case Attribute:
+						return macro E4X.doHasAttribs($expr);
+					case Text:
+						return macro E4X.doHasText($expr);
+					default:
+						return macro E4X.doHas($expr);
+				}
 			}else if(wrapInfo.type!=null){
 				switch(wrapInfo.type) {
 					case Node, IndNode:
@@ -272,6 +284,21 @@ class E4X
 		_pool.push(e4X);
 		return ret;
 	}
+	public static function doHasNodes(e4X:E4X):Bool {
+		var ret = e4X.hasNodes();
+		_pool.push(e4X);
+		return ret;
+	}
+	public static function doHasAttribs(e4X:E4X):Bool{
+		var ret = e4X.hasAttribs();
+		_pool.push(e4X);
+		return ret;
+	}
+	public static function doHasText(e4X:E4X):Bool{
+		var ret = e4X.hasText();
+		_pool.push(e4X);
+		return ret;
+	}
 	public static function doHas(e4X:E4X):Bool{
 		var ret:Bool = e4X.has();
 		_pool.push(e4X);
@@ -282,9 +309,9 @@ class E4X
 	
 	private var _root:Xml;
 	private var _parent:Xml;
-	private var _current:Array<Xml>;
-	private var _attributes:Array<Hash<String>>;
-	private var _texts:Array<Null<String>>;
+	private var _nodes:List<Xml>;
+	private var _attributes:List<Hash<String>>;
+	private var _texts:List<Null<String>>;
 	private var _retState:E4XReturnState;
 	
 	/**
@@ -297,14 +324,14 @@ class E4X
 	}
 	
 	public function setXml(xml:Xml):Void {
-		this._attributes = new Array<Hash<String>>();
-		this._texts = new Array<Null<String>>();
+		this._attributes = new List<Hash<String>>();
+		this._texts = new List<Null<String>>();
 		this._root = xml;
 		this._retState = E4XReturnState.Node;
-		this._current = new Array<Xml>();
+		this._nodes = new List<Xml>();
 		if (xml != null && xml.nodeType == Xml.Document)
-			this._current.push(xml.firstElement());
-		else if (xml != null) this._current.push(xml);
+			this._nodes.add(xml.firstElement());
+		else if (xml != null) this._nodes.add(xml);
 	}
 	
 	/**
@@ -324,38 +351,29 @@ class E4X
 	**/
 	public function child(?x:Null<Xml>->Int->Bool):E4X
 	{
-		var it:Iterator<Null<Xml>> = this._current.iterator();
-		var itw:Iterator<Null<Xml>>;
-		var working:Array<Xml> = null;
-		var a:Array<Xml> = new Array<Xml>();
+		var it:Iterator<Null<Xml>> = this._nodes.iterator();
+		var subIt:Iterator<Null<Xml>>;
+		var a:List<Xml> = new List<Xml>();
 		var node:Xml;
-		var i:Int = 0;
+		var i:Int;
 		
-		while (it.hasNext())
-		{
+		while (it.hasNext()){
 			node = it.next();
-			if (node.nodeType == Xml.Element)
-			{
-				if (working == null) working = new Array<Xml>();
-				itw = node.iterator();
-				while (itw.hasNext()) working.push(itw.next());
-			}
-		}
-		if (working != null)
-		{
-			it = working.iterator();
-			while (it.hasNext())
-			{
-				node = it.next();
-				if (x != null)
+			if (node.nodeType == Xml.Element){
+				i = 0;
+				subIt = node.iterator();
+				while (subIt.hasNext())
 				{
-					if (x(node, i)) a.push(node);
+					node = subIt.next();
+					if (x != null){
+						if (x(node, i)) a.add(node);
+					}
+					else a.add(node);
+					i++;
 				}
-				else a.push(node);
-				i++;
 			}
 		}
-		this._current = a;
+		this._nodes = a;
 		this._retState = E4XReturnState.Node;
 		return this;
 	}
@@ -369,43 +387,45 @@ class E4X
 	**/
 	public function desc(?x:Null<Xml>->Bool):E4X
 	{
-		var it:Iterator<Null<Xml>> = this._current.iterator();
-		var working:Array<Xml> = null;
-		var a:Array<Xml> = new Array<Xml>();
+		var it:Iterator<Xml> = this._nodes.iterator();
+		var newNodes = new List<Xml>();
 		var node:Xml;
 		
-		while (it.hasNext())
-		{
-			node = it.next();
-			if (node.nodeType == Xml.Element)
-			{
-				if (working == null) working = new Array<Xml>();
-				var rec = this.rec(node);
-				if(rec!=null)working = working.concat(rec);
-			}
-			else
-			{
-				if (working == null) working = new Array<Xml>();
-				working.push(node);
-			}
-		}
-		if (working != null)
-		{
-			it = working.iterator();
-			while (it.hasNext())
-			{
+		var iterators = new Array<Iterator<Xml>>();
+		if(it.hasNext()){
+			while (true) {
 				node = it.next();
-				if (x != null)
-				{
-					if (x(node)) a.push(node);
+				
+				if (x != null) {
+					if (x(node)) {
+						newNodes.add(node);
+					}
+				}else{
+					newNodes.add(node);
 				}
-				else a.push(node);
+				
+				if (node.nodeType == Xml.Element)
+				{
+					var subIt = node.iterator();
+					if (subIt.hasNext()) {
+						if(it.hasNext())iterators.push(it);
+						it = subIt;
+					}
+				}
+				if (!it.hasNext()) {
+					if (iterators.length==0) {
+						break;
+					}else {
+						it = iterators.pop();
+					}
+				}
 			}
 		}
-		this._current = a;
+		this._nodes = newNodes;
 		this._retState = E4XReturnState.Node;
 		return this;
 	}
+	
 	
 	/**
 		Filters ancestor nodes.
@@ -416,10 +436,9 @@ class E4X
 	**/
 	public function ances(?x:Null<Xml>->Int->Bool):E4X
 	{
-		var it:Iterator<Null<Xml>> = this._current.iterator();
+		var it:Iterator<Null<Xml>> = this._nodes.iterator();
 		var itw:Iterator<Null<Xml>>;
-		var working:Array<Xml> = null;
-		var a:Array<Xml> = new Array<Xml>();
+		var newNodes:List<Xml> = new List<Xml>();
 		var node:Xml;
 		var pnode:Xml;
 		var i:Int = 0;
@@ -430,26 +449,16 @@ class E4X
 			pnode = node.parent;
 			if (pnode != null)
 			{
-				if (working == null) working = new Array<Xml>();
-				if (!Lambda.has(working, pnode)) working.push(pnode);
-				else if (working.length == 0) working = null;
-			}
-		}
-		if (working != null)
-		{
-			it = working.iterator();
-			while (it.hasNext())
-			{
-				node = it.next();
-				if (x != null)
-				{
-					if (x(node, i)) a.push(node);
+				if (!Lambda.has(newNodes, pnode)) {
+					if (x != null){
+						if (x(node, i)) newNodes.add(node);
+					}else {
+						newNodes.add(node);
+					}
 				}
-				else a.push(node);
-				i++;
 			}
 		}
-		this._current = a;
+		this._nodes = newNodes;
 		this._retState = E4XReturnState.Node;
 		return this;
 	}
@@ -463,14 +472,14 @@ class E4X
 	**/
 	public function a(?x:String->String->Xml->Bool):E4X
 	{
-		var it:Iterator<Null<Xml>> = this._current.iterator();
+		var it = this._nodes.iterator();
 		var ait:Iterator<String>;
 		var node:Xml;
 		var atts:Hash<String> = null;
-		var allatts:Array<Hash<String>> = new Array<Hash<String>>();
+		var newAttribs = new List<Hash<String>>();
 		var s:String;
 		var vs:String;
-		var a:Array<Xml> = new Array<Xml>();
+		var newNodes = new List<Xml>();
 		
 		while (it.hasNext())
 		{
@@ -485,7 +494,7 @@ class E4X
 					if (atts == null) atts = new Hash<String>();
 					s = ait.next();
 					atts.set(s, node.get(s));
-					a.push(node);
+					newNodes.add(node);
 				}
 				else 
 				{
@@ -495,29 +504,17 @@ class E4X
 					{
 						if (atts == null) atts = new Hash<String>();
 						atts.set(s, vs);
-						a.push(node);
+						newNodes.add(node);
 					}
 				}
 			}
-			if (atts != null) allatts.push(atts);
+			if (atts != null) newAttribs.add(atts);
 		}
-		this._attributes = allatts;
-		this._current = a;
+		this._attributes = newAttribs;
+		this._nodes = newNodes;
 		this._retState = E4XReturnState.Attribute;
 		return this;
 	}
-	
-	/*public function ns(?x:Null<Xml>->Bool):E4X
-	{
-		
-		return this;
-	}
-	
-	public function v(?x:Null<Xml>->Bool):E4X
-	{
-		
-		return this;
-	}*/
 	
 	/**
 		Filters text nodes.
@@ -528,90 +525,71 @@ class E4X
 	**/
 	public function text(?x:Null<String>->Xml->Bool):E4X
 	{
-		var it:Iterator<Null<Xml>> = this._current.iterator();
+		var it:Iterator<Null<Xml>> = this._nodes.iterator();
 		var itt:Iterator<Null<Xml>>;
-		var itw:Iterator<Null<String>>;
-		var working:Array<Null<String>> = null;
-		var a:Array<Null<String>> = new Array<Null<String>>();
-		var ca:Array<Xml> = new Array<Xml>();
+		var newText = new List<Null<String>>();
+		var newNodes = new List<Xml>();
 		var node:Xml;
 		var vnode:Xml;
 		var tnode:String;
-		var i:Int = 0;
 		
 		while (it.hasNext())
 		{
 			node = it.next();
-			if (node.nodeType == Xml.Element)
+			var type = node.nodeType;
+			if (type == Xml.Element)
 			{
 				itt = node.iterator();
 				while (itt.hasNext())
 				{
 					vnode = itt.next();
-					if (vnode.nodeType == Xml.CData || vnode.nodeType == Xml.PCData)
+					var subType = vnode.nodeType;
+					if (subType == Xml.CData || subType == Xml.PCData)
 					{
-						if (working == null) working = new Array<Null<String>>();
-						working.push(vnode.nodeValue);
-						ca.push(vnode);
+						tnode = vnode.nodeValue;
+						
+						if (x != null){
+							if (x(tnode, vnode))
+							{
+								newText.add(tnode);
+								newNodes.add(vnode);
+							}
+						}
+						else
+						{
+							newText.add(tnode);
+							newNodes.add(vnode);
+						}
 					}
 				}
 			}
-			else if (node.nodeType == Xml.CData || node.nodeType == Xml.PCData)
+			else if (type == Xml.CData || type == Xml.PCData)
 			{
-				if (working == null) working = new Array<Null<String>>();
-				working.push(node.nodeValue);
-				ca.push(node);
-			}
-		}
-		if (working != null)
-		{
-			itw = working.iterator();
-			while (itw.hasNext())
-			{
-				tnode = itw.next();
-				if (x != null)
-				{
-					if (x(tnode, ca[i]))
+				tnode = node.nodeValue;
+				
+				if (x != null){
+					if (x(tnode, node))
 					{
-						i++;
-						a.push(tnode);
+						newText.add(tnode);
+						newNodes.add(node);
 					}
-					else ca.splice(i, 1);
 				}
 				else
 				{
-					i++;
-					a.push(tnode);
+					newText.add(tnode);
+					newNodes.add(node);
 				}
 			}
 		}
-		this._current = ca;
-		this._texts = a;
+		this._nodes = newNodes;
+		this._texts = newText;
 		this._retState = E4XReturnState.Text;
 		return this;
 	}
 	
-	/**
-		Call this at the end of the procedure if you need the last result returned after filtering.
-		<p class="code">return</p> If the last operation filtered either child nodes or descendant nodes or parent nodes
-		the returned value will be of type Array&lt;Xml&gt;. If the last operation filtered attributes
-		the return value will be of type Arrat&lt;Hash&lt;String&gt;&gt;. If the last operation
-		filtered text nodes, the return value will be of type Array&lt;Null&lt;String&gt;&gt;.
-	**/
-	public function exec():Iterator<Dynamic>
-	{
-		var u:Array<Dynamic> = null;
-		switch (this._retState)
-		{
-			case      Node: u = this._current;
-			case Attribute: u = this._attributes;
-			case      Text: u = this._texts;
-		}
-		return u.iterator();
-	}
 	public function retNodes():Iterator<Xml>
 	{
-		return _current.iterator();
+		return _nodes.iterator();
 	}
 	public function retAttribs():Iterator<Hash<String>>
 	{
@@ -621,38 +599,27 @@ class E4X
 	{
 		return _texts.iterator();
 	}
+	public function hasNodes():Bool
+	{
+		return (_nodes!=null) && !_nodes.isEmpty();
+	}
+	public function hasAttribs():Bool
+	{
+		return (_attributes != null) && !_attributes.isEmpty();
+	}
+	public function hasText():Bool
+	{
+		return (_texts!=null) && !_texts.isEmpty();
+	}
 	public function has():Bool
 	{
 		switch (this._retState)
 		{
-			case      Node: return this._current.length>0;
-			case Attribute: return this._attributes.length>0;
-			case      Text: return this._texts.length > 0;
+			case      Node: return hasNodes();
+			case Attribute: return hasAttribs();
+			case      Text: return hasText();
 		}
 		throw "Invalid return code";
-	}
-	
-	private function rec(node:Xml):Array<Xml>
-	{
-		var ret:Array<Xml> = null;
-		if (node.nodeType != Xml.Element)
-		{
-			ret = new Array<Xml>();
-			ret.push(node);
-			return ret;
-		}
-		var tmp:Array<Xml>;
-		var it:Iterator<Xml> = node.iterator();
-		var n:Xml;
-		while (it.hasNext())
-		{
-			if (ret == null) ret = new Array<Xml>();
-			n = it.next();
-			tmp = this.rec(n);
-			ret.push(n);
-			if (tmp != null) ret = ret.concat(tmp);
-		}
-		return ret;
 	}
 	#end
 }

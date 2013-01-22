@@ -4,27 +4,27 @@
   <output>
     <movie outputType="Application" />
     <movie input="" />
-    <movie path="..\bin\XmlCombiner.exe" />
+    <movie path="bin\js\TestE4XPerformance.js" />
     <movie fps="30" />
     <movie width="800" />
     <movie height="600" />
     <movie version="1" />
     <movie minorVersion="0" />
-    <movie platform="C++" />
+    <movie platform="JavaScript" />
     <movie background="#FFFFFF" />
   </output>
   <!-- Other classes to be compiled into your SWF -->
   <classpaths>
-    <class path="..\src" />
-    <class path="..\testSrc" />
+    <class path="src" />
+    <class path="..\..\src" />
   </classpaths>
   <!-- Build options -->
   <build>
     <option directives="code_completion" />
     <option flashStrict="False" />
-    <option mainClass="XmlCombinerShell" />
-    <option enabledebug="True" />
-    <option additional="" />
+    <option mainClass="TestE4XPerformance" />
+    <option enabledebug="False" />
+    <option additional="-resource ../../testEmbed/sample-xml.xml@sample-xml" />
   </build>
   <!-- haxelib libraries -->
   <haxelib>
@@ -34,7 +34,7 @@
   </haxelib>
   <!-- Class files to compile (other referenced classes will automatically be included) -->
   <compileTargets>
-    <compile path="..\src\XmlCombinerShell.hx" />
+    <compile path="src\TestE4XPerformance.hx" />
   </compileTargets>
   <!-- Paths to exclude from the Project Explorer tree -->
   <hiddenPaths>
@@ -48,7 +48,7 @@
   <options>
     <option showHiddenPaths="False" />
     <option testMovie="OpenDocument" />
-    <option testMovieCommand="../testBin/Test CPP.bat" />
+    <option testMovieCommand="bin\js\TestE4XPerformance.html" />
   </options>
   <!-- Plugin storage -->
   <storage />
