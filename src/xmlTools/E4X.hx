@@ -16,7 +16,7 @@ import haxe.macro.Context;
 class E4X 
 {
 	@:macro public static function x(expr:Expr):Expr {
-		return doE4X(expr, true, false, null, true, null);
+		return doE4X(expr, true, false, null, true, null, ReturnType.List);
 	}
 	
 	#if macro
@@ -27,12 +27,56 @@ class E4X
 	private static var TEXT_METHOD:String = "text";
 	
 	
-	public static function doE4X(expr:Expr, wrapField:Bool, allowBlock:Bool, xmlParam:String, doXmlProps:Bool, filterType:Null<FilterType>):Expr {
+	public static function doE4X(expr:Expr, wrapField:Bool, allowBlock:Bool, xmlParam:String, doXmlProps:Bool, filterType:Null<FilterType>, returnType:ReturnType):Expr {
 		var wrapInfo:WrapInfo = { wrapped:false, type:null };
 		expr = checkExpr(expr, wrapField, allowBlock, xmlParam, doXmlProps, wrapInfo, filterType);
 		if (wrapInfo.wrapped && !isE4XFinalAccess(expr)) {
 			var pos = Context.currentPos();
-			if (filterType != null) {
+			
+			if (returnType == null && filterType != null) {
+				returnType = ReturnType.Boolean;
+			}
+			
+			switch(returnType) {
+				case Str:
+					switch(wrapInfo.type) {
+						case Node, IndNode:
+							return macro E4X.doGetNodeNames($expr);
+						case Attribute:
+							return macro E4X.doGetAttribs($expr);
+						case Text:
+							return macro E4X.doGetText($expr);
+						default:
+							return macro E4X.doStr($expr);
+					}
+					
+				case Boolean:
+					switch(wrapInfo.type) {
+						case Node, IndNode:
+							return macro E4X.doHasNodes($expr);
+						case Attribute:
+							return macro E4X.doHasAttribs($expr);
+						case Text:
+							return macro E4X.doHasText($expr);
+						default:
+							return macro E4X.doHas($expr);
+					}
+					
+				default:
+					switch(wrapInfo.type) {
+						case Node, IndNode:
+							return macro E4X.doRetNodes($expr);
+						case Attribute:
+							return macro E4X.doRetAttribs($expr);
+						case Text:
+							return macro E4X.doRetText($expr);
+						default:
+							return macro E4X.doRet($expr);
+					}
+					
+			}
+			
+			/*if (filterType != null) {
 				switch(wrapInfo.type) {
 					case Node, IndNode:
 						return macro E4X.doHasNodes($expr);
@@ -52,7 +96,7 @@ class E4X
 					case Text:
 						return macro E4X.doRetText($expr);
 				}
-			}
+			}*/
 		}
 		return expr;
 	}
@@ -72,7 +116,7 @@ class E4X
 			case EBlock(eArr):
 				if (allowBlock) {
 					for (i in 0 ... eArr.length) {
-						eArr[i] = doE4X(eArr[i], wrapField, allowBlock, xmlParam, doXmlProps, filterType);
+						eArr[i] = doE4X(eArr[i], wrapField, allowBlock, xmlParam, doXmlProps, filterType, null);
 					}
 					return { expr:EBlock(eArr), pos:pos };
 				}else{
@@ -166,13 +210,20 @@ class E4X
 				}
 			case EReturn(e):
 				if (e != null) {
-					e =  doE4X(e, wrapField, allowBlock, xmlParam, doXmlProps, filterType);
+					e =  doE4X(e, wrapField, allowBlock, xmlParam, doXmlProps, filterType, null);
 					return macro return $e;
 				}else {
 					return expr;
 				}
 			case EBinop( op , e1 , e2 ):
-				return { expr:EBinop(op, doE4X(e1, wrapField, allowBlock, xmlParam, doXmlProps, filterType), doE4X(e2, wrapField, allowBlock, xmlParam, doXmlProps, filterType)), pos:pos };
+				var retType:ReturnType;
+				switch(op) {
+					case OpEq:
+						retType = ReturnType.Str;
+					default:
+						retType = ReturnType.Boolean;
+				}
+				return { expr:EBinop(op, doE4X(e1, wrapField, allowBlock, xmlParam, doXmlProps, filterType, ReturnType.Str), doE4X(e2, wrapField, allowBlock, xmlParam, doXmlProps, filterType, retType)), pos:pos };
 			default:
 				return expr;
 		}
@@ -202,7 +253,7 @@ class E4X
 			case EReturn( e ):
 				expr = checkExpr(expr, true, false, "xml", true, wrapInfo, filterType);
 			default:
-				expr = doE4X(expr, true, false, "xml", true, filterType);
+				expr = doE4X(expr, true, false, "xml", true, filterType, ReturnType.Boolean);
 				expr = macro return $expr;
 		}
 		switch(filterType) {
@@ -284,6 +335,28 @@ class E4X
 		_pool.push(e4X);
 		return ret;
 	}
+	
+	public static function doGetNodeNames(e4X:E4X):String {
+		var ret = e4X.getNodeNames();
+		_pool.push(e4X);
+		return ret;
+	}
+	public static function doGetAttribs(e4X:E4X):String{
+		var ret = e4X.getAttribsStr();
+		_pool.push(e4X);
+		return ret;
+	}
+	public static function doGetText(e4X:E4X):String{
+		var ret = e4X.getText();
+		_pool.push(e4X);
+		return ret;
+	}
+	public static function doStr(e4X:E4X):String{
+		var ret = e4X.getStr();
+		_pool.push(e4X);
+		return ret;
+	}
+	
 	public static function doHasNodes(e4X:E4X):Bool {
 		var ret = e4X.hasNodes();
 		_pool.push(e4X);
@@ -313,6 +386,15 @@ class E4X
 	private var _attributes:List<Hash<String>>;
 	private var _texts:List<Null<String>>;
 	private var _retState:E4XReturnState;
+	
+	private var _attrStrValid:Bool;
+	private var _attributesStr:String;
+	
+	private var _nodesStrValid:Bool;
+	private var _nodesStr:String;
+	
+	private var _textsStrValid:Bool;
+	private var _textsStr:String;
 	
 	/**
 		Creates new walking operation.
@@ -373,6 +455,7 @@ class E4X
 				}
 			}
 		}
+		this._nodesStrValid = false;
 		this._nodes = a;
 		this._retState = E4XReturnState.Node;
 		return this;
@@ -391,7 +474,7 @@ class E4X
 		var newNodes = new List<Xml>();
 		var node:Xml;
 		
-		var iterators = new Array<Iterator<Xml>>();
+		var iterators = new List<Iterator<Xml>>();
 		if(it.hasNext()){
 			while (true) {
 				node = it.next();
@@ -421,6 +504,7 @@ class E4X
 				}
 			}
 		}
+		this._nodesStrValid = false;
 		this._nodes = newNodes;
 		this._retState = E4XReturnState.Node;
 		return this;
@@ -458,6 +542,7 @@ class E4X
 				}
 			}
 		}
+		this._nodesStrValid = false;
 		this._nodes = newNodes;
 		this._retState = E4XReturnState.Node;
 		return this;
@@ -510,7 +595,9 @@ class E4X
 			}
 			if (atts != null) newAttribs.add(atts);
 		}
+		this._attrStrValid = false;
 		this._attributes = newAttribs;
+		this._nodesStrValid = false;
 		this._nodes = newNodes;
 		this._retState = E4XReturnState.Attribute;
 		return this;
@@ -581,7 +668,9 @@ class E4X
 				}
 			}
 		}
+		this._nodesStrValid = false;
 		this._nodes = newNodes;
+		this._textsStrValid = false;
 		this._texts = newText;
 		this._retState = E4XReturnState.Text;
 		return this;
@@ -599,6 +688,88 @@ class E4X
 	{
 		return _texts.iterator();
 	}
+	
+	public function getNodeNames():String
+	{
+		if (!_nodesStrValid) {
+			_nodesStrValid = true;
+			
+			_nodesStr = null;
+			if (hasAttribs()) {
+				var it = _nodes.iterator();
+				var first:Bool = true;
+				while (it.hasNext()) {
+					var node:Xml = it.next();
+					if (first) {
+						_nodesStr = node.nodeName;
+						first = false;
+					}else {
+						_nodesStr += " "+node.nodeName;
+					}
+				}
+			}
+			
+		}
+		return _nodesStr;
+	}
+	public function getAttribsStr():String
+	{
+		if (!_attrStrValid) {
+			_attrStrValid = true;
+			
+			_attributesStr = null;
+			if (hasAttribs()) {
+				var it = _attributes.iterator();
+				var first:Bool = true;
+				while (it.hasNext()) {
+					var attList:Hash<String> = it.next();
+					for (i in attList.keys()) {
+						if (first) {
+							_attributesStr = attList.get(i);
+							first = false;
+						}else {
+							_attributesStr += " "+attList.get(i);
+						}
+					}
+				}
+			}
+		}
+		return _attributesStr;
+	}
+	public function getText():String
+	{
+		if (!_textsStrValid) {
+			_textsStrValid = true;
+			
+			_textsStr = null;
+			if (hasAttribs()) {
+				var it = _texts.iterator();
+				var first:Bool = true;
+				while (it.hasNext()) {
+					var text:String = it.next();
+					if (first) {
+						_textsStr = text;
+						first = false;
+					}else {
+						_textsStr += " "+text;
+					}
+				}
+			}
+			
+		}
+		return _textsStr;
+	}
+	public function getStr():String
+	{
+		switch (this._retState)
+		{
+			case      Node: return getNodeNames();
+			case Attribute: return getAttribsStr();
+			case      Text: return getText();
+		}
+		throw "Invalid return code";
+	}
+	
 	public function hasNodes():Bool
 	{
 		return (_nodes!=null) && !_nodes.isEmpty();
@@ -611,6 +782,7 @@ class E4X
 	{
 		return (_texts!=null) && !_texts.isEmpty();
 	}
+	
 	public function has():Bool
 	{
 		switch (this._retState)
@@ -636,6 +808,12 @@ enum FilterType {
 	Node;
 	Attribute;
 	Text;
+}
+
+enum ReturnType{
+	List;
+	Str;
+	Boolean;
 }
 
 #else

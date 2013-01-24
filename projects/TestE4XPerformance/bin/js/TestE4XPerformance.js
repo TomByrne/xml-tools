@@ -455,7 +455,6 @@ PerfTestRunner.runNextTest = function() {
 	var test = PerfTestRunner._currentTest == -1?PerfTestRunner._funcBenchmark:PerfTestRunner._tests[PerfTestRunner._currentTest];
 	haxe.Log.trace("Running Test: " + test.name,{ fileName : "PerfTestRunner.hx", lineNumber : 33, className : "PerfTestRunner", methodName : "runNextTest"});
 	var start = haxe.Timer.stamp();
-	haxe.Log.trace(start,{ fileName : "PerfTestRunner.hx", lineNumber : 35, className : "PerfTestRunner", methodName : "runNextTest"});
 	var func = test.testFunc;
 	var _g1 = 0, _g = test.iterations;
 	while(_g1 < _g) {
@@ -466,7 +465,7 @@ PerfTestRunner.runNextTest = function() {
 	test.time = end - start;
 	if(PerfTestRunner._currentTest != -1) test.time -= PerfTestRunner._funcBenchmark.time / PerfTestRunner._funcBenchmark.iterations * test.iterations;
 	var perThousand = test.time / test.iterations * 1000;
-	haxe.Log.trace(perThousand / PerfTestRunner.SECOND_FACTOR + "s per 1000 iterations\n",{ fileName : "PerfTestRunner.hx", lineNumber : 46, className : "PerfTestRunner", methodName : "runNextTest"});
+	haxe.Log.trace(perThousand / PerfTestRunner.SECOND_FACTOR + "s per 1000 iterations\n",{ fileName : "PerfTestRunner.hx", lineNumber : 45, className : "PerfTestRunner", methodName : "runNextTest"});
 	PerfTestRunner._currentTest++;
 	if(PerfTestRunner._currentTest < PerfTestRunner._tests.length) PerfTestRunner.runNextTest();
 }
@@ -691,8 +690,11 @@ StringTools.isEOF = function(c) {
 var TestE4XPerformance = $hxClasses["TestE4XPerformance"] = function() {
 	this._xml = Xml.parse(haxe.Resource.getString("sample-xml"));
 	PerfTestRunner.addTest("Get Children",$bind(this,this.getChildren),1000);
-	PerfTestRunner.addTest("Get Descendants",$bind(this,this.getDescendants),100);
+	PerfTestRunner.addTest("Get Children By Has Attrib",$bind(this,this.getChildrenWAttrib),100);
+	PerfTestRunner.addTest("Get Descendants",$bind(this,this.getDescendants),1000);
 	PerfTestRunner.addTest("Get Descendant Text",$bind(this,this.getDescText),100);
+	PerfTestRunner.addTest("Get Descendants by Name",$bind(this,this.getDescByName),100);
+	PerfTestRunner.addTest("Get Descendants by Attrib Eq",$bind(this,this.getDescByAttrib),100);
 	PerfTestRunner.runTests();
 };
 TestE4XPerformance.__name__ = ["TestE4XPerformance"];
@@ -700,11 +702,30 @@ TestE4XPerformance.main = function() {
 	new TestE4XPerformance();
 }
 TestE4XPerformance.prototype = {
-	getDescText: function() {
+	getDescByAttrib: function() {
+		xmlTools.E4X.doRetNodes(xmlTools.E4X.getNew(this._xml).desc(function(xml) {
+			return xmlTools.E4X.doGetAttribs(xmlTools.E4X.getNew(xml).a(function(attName,attVal,xml1) {
+				return attName == "units";
+			})) == "g";
+		}));
+	}
+	,getDescByName: function() {
+		xmlTools.E4X.doRetNodes(xmlTools.E4X.getNew(this._xml).desc(function(xml) {
+			return xml.nodeType == Xml.Element && xml.getNodeName() == "sodium";
+		}));
+	}
+	,getDescText: function() {
 		xmlTools.E4X.doRetText(xmlTools.E4X.getNew(this._xml).desc().text());
 	}
 	,getDescendants: function() {
 		xmlTools.E4X.doRetNodes(xmlTools.E4X.getNew(this._xml).desc());
+	}
+	,getChildrenWAttrib: function() {
+		xmlTools.E4X.doRetNodes(xmlTools.E4X.getNew(this._xml).child(function(xml,_i) {
+			return xmlTools.E4X.doHasAttribs(xmlTools.E4X.getNew(xml).a(function(attName,attVal,xml1) {
+				return attName == "att";
+			}));
+		}));
 	}
 	,getChildren: function() {
 		xmlTools.E4X.doRetNodes(xmlTools.E4X.getNew(this._xml).child());
@@ -2013,6 +2034,26 @@ xmlTools.E4X.doRetText = function(e4X) {
 	xmlTools.E4X._pool.push(e4X);
 	return ret;
 }
+xmlTools.E4X.doGetNodeNames = function(e4X) {
+	var ret = e4X.getNodeNames();
+	xmlTools.E4X._pool.push(e4X);
+	return ret;
+}
+xmlTools.E4X.doGetAttribs = function(e4X) {
+	var ret = e4X.getAttribsStr();
+	xmlTools.E4X._pool.push(e4X);
+	return ret;
+}
+xmlTools.E4X.doGetText = function(e4X) {
+	var ret = e4X.getText();
+	xmlTools.E4X._pool.push(e4X);
+	return ret;
+}
+xmlTools.E4X.doStr = function(e4X) {
+	var ret = e4X.getStr();
+	xmlTools.E4X._pool.push(e4X);
+	return ret;
+}
 xmlTools.E4X.doHasNodes = function(e4X) {
 	var ret = e4X.hasNodes();
 	xmlTools.E4X._pool.push(e4X);
@@ -2053,6 +2094,75 @@ xmlTools.E4X.prototype = {
 	}
 	,hasNodes: function() {
 		return this._nodes != null && !this._nodes.isEmpty();
+	}
+	,getStr: function() {
+		switch( (this._retState)[1] ) {
+		case 0:
+			return this.getNodeNames();
+		case 1:
+			return this.getAttribsStr();
+		case 2:
+			return this.getText();
+		}
+		throw "Invalid return code";
+	}
+	,getText: function() {
+		if(!this._textsStrValid) {
+			this._textsStrValid = true;
+			this._textsStr = null;
+			if(this.hasAttribs()) {
+				var it = this._texts.iterator();
+				var first = true;
+				while(it.hasNext()) {
+					var text = it.next();
+					if(first) {
+						this._textsStr = text;
+						first = false;
+					} else this._textsStr += " " + text;
+				}
+			}
+		}
+		return this._textsStr;
+	}
+	,getAttribsStr: function() {
+		if(!this._attrStrValid) {
+			this._attrStrValid = true;
+			this._attributesStr = null;
+			if(this.hasAttribs()) {
+				var it = this._attributes.iterator();
+				var first = true;
+				while(it.hasNext()) {
+					var attList = it.next();
+					var $it0 = attList.keys();
+					while( $it0.hasNext() ) {
+						var i = $it0.next();
+						if(first) {
+							this._attributesStr = attList.get(i);
+							first = false;
+						} else this._attributesStr += " " + attList.get(i);
+					}
+				}
+			}
+		}
+		return this._attributesStr;
+	}
+	,getNodeNames: function() {
+		if(!this._nodesStrValid) {
+			this._nodesStrValid = true;
+			this._nodesStr = null;
+			if(this.hasAttribs()) {
+				var it = this._nodes.iterator();
+				var first = true;
+				while(it.hasNext()) {
+					var node = it.next();
+					if(first) {
+						this._nodesStr = node.getNodeName();
+						first = false;
+					} else this._nodesStr += " " + node.getNodeName();
+				}
+			}
+		}
+		return this._nodesStr;
 	}
 	,retText: function() {
 		return this._texts.iterator();
@@ -2105,7 +2215,9 @@ xmlTools.E4X.prototype = {
 				}
 			}
 		}
+		this._nodesStrValid = false;
 		this._nodes = newNodes;
+		this._textsStrValid = false;
 		this._texts = newText;
 		this._retState = xmlTools.E4XReturnState.Text;
 		return this;
@@ -2140,7 +2252,9 @@ xmlTools.E4X.prototype = {
 			}
 			if(atts != null) newAttribs.add(atts);
 		}
+		this._attrStrValid = false;
 		this._attributes = newAttribs;
+		this._nodesStrValid = false;
 		this._nodes = newNodes;
 		this._retState = xmlTools.E4XReturnState.Attribute;
 		return this;
@@ -2163,6 +2277,7 @@ xmlTools.E4X.prototype = {
 				}
 			}
 		}
+		this._nodesStrValid = false;
 		this._nodes = newNodes;
 		this._retState = xmlTools.E4XReturnState.Node;
 		return this;
@@ -2188,6 +2303,7 @@ xmlTools.E4X.prototype = {
 				if(iterators.length == 0) break; else it = iterators.pop();
 			}
 		}
+		this._nodesStrValid = false;
 		this._nodes = newNodes;
 		this._retState = xmlTools.E4XReturnState.Node;
 		return this;
@@ -2212,6 +2328,7 @@ xmlTools.E4X.prototype = {
 				}
 			}
 		}
+		this._nodesStrValid = false;
 		this._nodes = a;
 		this._retState = xmlTools.E4XReturnState.Node;
 		return this;
@@ -2224,6 +2341,12 @@ xmlTools.E4X.prototype = {
 		this._nodes = new List();
 		if(xml != null && xml.nodeType == Xml.Document) this._nodes.add(xml.firstElement()); else if(xml != null) this._nodes.add(xml);
 	}
+	,_textsStr: null
+	,_textsStrValid: null
+	,_nodesStr: null
+	,_nodesStrValid: null
+	,_attributesStr: null
+	,_attrStrValid: null
 	,_retState: null
 	,_texts: null
 	,_attributes: null
@@ -2284,10 +2407,12 @@ Xml.Comment = "comment";
 Xml.DocType = "doctype";
 Xml.Prolog = "prolog";
 Xml.Document = "document";
-haxe.Resource.content = [{ name : "sample-xml", data : "s6160:PD94bWwgdmVyc2lvbj0iMS4wIj8%DQo8bnV0cml0aW9uPg0KDQo8ZGFpbHktdmFsdWVzPg0KCTx0b3RhbC1mYXQgdW5pdHM9ImciPjY1PC90b3RhbC1mYXQ%DQoJPHNhdHVyYXRlZC1mYXQgdW5pdHM9ImciPjIwPC9zYXR1cmF0ZWQtZmF0Pg0KCTxjaG9sZXN0ZXJvbCB1bml0cz0ibWciPjMwMDwvY2hvbGVzdGVyb2w%DQoJPHNvZGl1bSB1bml0cz0ibWciPjI0MDA8L3NvZGl1bT4NCgk8Y2FyYiB1bml0cz0iZyI%MzAwPC9jYXJiPg0KCTxmaWJlciB1bml0cz0iZyI%MjU8L2ZpYmVyPg0KCTxwcm90ZWluIHVuaXRzPSJnIj41MDwvcHJvdGVpbj4NCjwvZGFpbHktdmFsdWVzPg0KDQo8Zm9vZD4NCgk8bmFtZT5Bdm9jYWRvIERpcDwvbmFtZT4NCgk8bWZyPlN1bm55ZGFsZTwvbWZyPg0KCTxzZXJ2aW5nIHVuaXRzPSJnIj4yOTwvc2VydmluZz4NCgk8Y2Fsb3JpZXMgdG90YWw9IjExMCIgZmF0PSIxMDAiLz4NCgk8dG90YWwtZmF0PjExPC90b3RhbC1mYXQ%DQoJPHNhdHVyYXRlZC1mYXQ%Mzwvc2F0dXJhdGVkLWZhdD4NCgk8Y2hvbGVzdGVyb2w%NTwvY2hvbGVzdGVyb2w%DQoJPHNvZGl1bT4yMTA8L3NvZGl1bT4NCgk8Y2FyYj4yPC9jYXJiPg0KCTxmaWJlcj4wPC9maWJlcj4NCgk8cHJvdGVpbj4xPC9wcm90ZWluPg0KCTx2aXRhbWlucz4NCgkJPGE%MDwvYT4NCgkJPGM%MDwvYz4NCgk8L3ZpdGFtaW5zPg0KCTxtaW5lcmFscz4NCgkJPGNhPjA8L2NhPg0KCQk8ZmU%MDwvZmU%DQoJPC9taW5lcmFscz4NCjwvZm9vZD4NCg0KPGZvb2Q%DQoJPG5hbWU%QmFnZWxzLCBOZXcgWW9yayBTdHlsZSA8L25hbWU%DQoJPG1mcj5UaG9tcHNvbjwvbWZyPg0KCTxzZXJ2aW5nIHVuaXRzPSJnIj4xMDQ8L3NlcnZpbmc%DQoJPGNhbG9yaWVzIHRvdGFsPSIzMDAiIGZhdD0iMzUiLz4NCgk8dG90YWwtZmF0PjQ8L3RvdGFsLWZhdD4NCgk8c2F0dXJhdGVkLWZhdD4xPC9zYXR1cmF0ZWQtZmF0Pg0KCTxjaG9sZXN0ZXJvbD4wPC9jaG9sZXN0ZXJvbD4NCgk8c29kaXVtPjUxMDwvc29kaXVtPg0KCTxjYXJiPjU0PC9jYXJiPg0KCTxmaWJlcj4zPC9maWJlcj4NCgk8cHJvdGVpbj4xMTwvcHJvdGVpbj4NCgk8dml0YW1pbnM%DQoJCTxhPjA8L2E%DQoJCTxjPjA8L2M%DQoJPC92aXRhbWlucz4NCgk8bWluZXJhbHM%DQoJCTxjYT44PC9jYT4NCgkJPGZlPjIwPC9mZT4NCgk8L21pbmVyYWxzPg0KPC9mb29kPg0KDQo8Zm9vZD4NCgk8bmFtZT5CZWVmIEZyYW5rZnVydGVyLCBRdWFydGVyIFBvdW5kIDwvbmFtZT4NCgk8bWZyPkFybWl0YWdlPC9tZnI%DQoJPHNlcnZpbmcgdW5pdHM9ImciPjExNTwvc2VydmluZz4NCgk8Y2Fsb3JpZXMgdG90YWw9IjM3MCIgZmF0PSIyOTAiLz4NCgk8dG90YWwtZmF0PjMyPC90b3RhbC1mYXQ%DQoJPHNhdHVyYXRlZC1mYXQ%MTU8L3NhdHVyYXRlZC1mYXQ%DQoJPGNob2xlc3Rlcm9sPjY1PC9jaG9sZXN0ZXJvbD4NCgk8c29kaXVtPjExMDA8L3NvZGl1bT4NCgk8Y2FyYj44PC9jYXJiPg0KCTxmaWJlcj4wPC9maWJlcj4NCgk8cHJvdGVpbj4xMzwvcHJvdGVpbj4NCgk8dml0YW1pbnM%DQoJCTxhPjA8L2E%DQoJCTxjPjI8L2M%DQoJPC92aXRhbWlucz4NCgk8bWluZXJhbHM%DQoJCTxjYT4xPC9jYT4NCgkJPGZlPjY8L2ZlPg0KCTwvbWluZXJhbHM%DQo8L2Zvb2Q%DQoNCjxmb29kPg0KCTxuYW1lPkNoaWNrZW4gUG90IFBpZTwvbmFtZT4NCgk8bWZyPkxha2Vzb248L21mcj4NCgk8c2VydmluZyB1bml0cz0iZyI%MTk4PC9zZXJ2aW5nPg0KCTxjYWxvcmllcyB0b3RhbD0iNDEwIiBmYXQ9IjIwMCIvPg0KCTx0b3RhbC1mYXQ%MjI8L3RvdGFsLWZhdD4NCgk8c2F0dXJhdGVkLWZhdD45PC9zYXR1cmF0ZWQtZmF0Pg0KCTxjaG9sZXN0ZXJvbD4yNTwvY2hvbGVzdGVyb2w%DQoJPHNvZGl1bT44MTA8L3NvZGl1bT4NCgk8Y2FyYj40MjwvY2FyYj4NCgk8ZmliZXI%MjwvZmliZXI%DQoJPHByb3RlaW4%MTA8L3Byb3RlaW4%DQoJPHZpdGFtaW5zPg0KCQk8YT4yMDwvYT4NCgkJPGM%MjwvYz4NCgk8L3ZpdGFtaW5zPg0KCTxtaW5lcmFscz4NCgkJPGNhPjI8L2NhPg0KCQk8ZmU%MTA8L2ZlPg0KCTwvbWluZXJhbHM%DQo8L2Zvb2Q%DQoNCjxmb29kPg0KCTxuYW1lPkNvbGUgU2xhdzwvbmFtZT4NCgk8bWZyPkZyZXNoIFF1aWNrPC9tZnI%DQoJPHNlcnZpbmcgdW5pdHM9IiBjdXAiPjEuNTwvc2VydmluZz4NCgk8Y2Fsb3JpZXMgdG90YWw9IjIwIiBmYXQ9IjAiLz4NCgk8dG90YWwtZmF0PjA8L3RvdGFsLWZhdD4NCgk8c2F0dXJhdGVkLWZhdD4wPC9zYXR1cmF0ZWQtZmF0Pg0KCTxjaG9sZXN0ZXJvbD4wPC9jaG9sZXN0ZXJvbD4NCgk8c29kaXVtPjE1PC9zb2RpdW0%DQoJPGNhcmI%NTwvY2FyYj4NCgk8ZmliZXI%MjwvZmliZXI%DQoJPHByb3RlaW4%MTwvcHJvdGVpbj4NCgk8dml0YW1pbnM%DQoJCTxhPjMwPC9hPg0KCQk8Yz40NTwvYz4NCgk8L3ZpdGFtaW5zPg0KCTxtaW5lcmFscz4NCgkJPGNhPjQ8L2NhPg0KCQk8ZmU%MjwvZmU%DQoJPC9taW5lcmFscz4NCjwvZm9vZD4NCg0KPGZvb2Q%DQoJPG5hbWU%RWdnczwvbmFtZT4NCgk8bWZyPkdvb2RwYXRoPC9tZnI%DQoJPHNlcnZpbmcgdW5pdHM9ImciPjUwPC9zZXJ2aW5nPg0KCTxjYWxvcmllcyB0b3RhbD0iNzAiIGZhdD0iNDAiLz4NCgk8dG90YWwtZmF0PjQuNTwvdG90YWwtZmF0Pg0KCTxzYXR1cmF0ZWQtZmF0PjEuNTwvc2F0dXJhdGVkLWZhdD4NCgk8Y2hvbGVzdGVyb2w%MjE1PC9jaG9sZXN0ZXJvbD4NCgk8c29kaXVtPjY1PC9zb2RpdW0%DQoJPGNhcmI%MTwvY2FyYj4NCgk8ZmliZXI%MDwvZmliZXI%DQoJPHByb3RlaW4%NjwvcHJvdGVpbj4NCgk8dml0YW1pbnM%DQoJCTxhPjY8L2E%DQoJCTxjPjA8L2M%DQoJPC92aXRhbWlucz4NCgk8bWluZXJhbHM%DQoJCTxjYT4yPC9jYT4NCgkJPGZlPjQ8L2ZlPg0KCTwvbWluZXJhbHM%DQo8L2Zvb2Q%DQoNCjxmb29kPg0KCTxuYW1lPkhhemVsbnV0IFNwcmVhZDwvbmFtZT4NCgk8bWZyPkZlcnJlaXJhPC9tZnI%DQoJPHNlcnZpbmcgdW5pdHM9InRic3AiPjI8L3NlcnZpbmc%DQoJPGNhbG9yaWVzIHRvdGFsPSIyMDAiIGZhdD0iOTAiLz4NCgk8dG90YWwtZmF0PjEwPC90b3RhbC1mYXQ%DQoJPHNhdHVyYXRlZC1mYXQ%Mjwvc2F0dXJhdGVkLWZhdD4NCgk8Y2hvbGVzdGVyb2w%MDwvY2hvbGVzdGVyb2w%DQoJPHNvZGl1bT4yMDwvc29kaXVtPg0KCTxjYXJiPjIzPC9jYXJiPg0KCTxmaWJlcj4yPC9maWJlcj4NCgk8cHJvdGVpbj4zPC9wcm90ZWluPg0KCTx2aXRhbWlucz4NCgkJPGE%MDwvYT4NCgkJPGM%MDwvYz4NCgk8L3ZpdGFtaW5zPg0KCTxtaW5lcmFscz4NCgkJPGNhPjY8L2NhPg0KCQk8ZmU%NDwvZmU%DQoJPC9taW5lcmFscz4NCjwvZm9vZD4NCg0KPGZvb2Q%DQoJPG5hbWU%UG90YXRvIENoaXBzPC9uYW1lPg0KCTxtZnI%TGVlczwvbWZyPg0KCTxzZXJ2aW5nIHVuaXRzPSJnIj4yODwvc2VydmluZz4NCgk8Y2Fsb3JpZXMgdG90YWw9IjE1MCIgZmF0PSI5MCIvPg0KCTx0b3RhbC1mYXQ%MTA8L3RvdGFsLWZhdD4NCgk8c2F0dXJhdGVkLWZhdD4zPC9zYXR1cmF0ZWQtZmF0Pg0KCTxjaG9sZXN0ZXJvbD4wPC9jaG9sZXN0ZXJvbD4NCgk8c29kaXVtPjE4MDwvc29kaXVtPg0KCTxjYXJiPjE1PC9jYXJiPg0KCTxmaWJlcj4xPC9maWJlcj4NCgk8cHJvdGVpbj4yPC9wcm90ZWluPg0KCTx2aXRhbWlucz4NCgkJPGE%MDwvYT4NCgkJPGM%MTA8L2M%DQoJPC92aXRhbWlucz4NCgk8bWluZXJhbHM%DQoJCTxjYT4wPC9jYT4NCgkJPGZlPjA8L2ZlPg0KCTwvbWluZXJhbHM%DQo8L2Zvb2Q%DQoNCjxmb29kPg0KCTxuYW1lPlNveSBQYXR0aWVzLCBHcmlsbGVkPC9uYW1lPg0KCTxtZnI%R2FyZGVucHJvZHVjdHM8L21mcj4NCgk8c2VydmluZyB1bml0cz0iZyI%OTY8L3NlcnZpbmc%DQoJPGNhbG9yaWVzIHRvdGFsPSIxNjAiIGZhdD0iNDUiLz4NCgk8dG90YWwtZmF0PjU8L3RvdGFsLWZhdD4NCgk8c2F0dXJhdGVkLWZhdD4wPC9zYXR1cmF0ZWQtZmF0Pg0KCTxjaG9sZXN0ZXJvbD4wPC9jaG9sZXN0ZXJvbD4NCgk8c29kaXVtPjQyMDwvc29kaXVtPg0KCTxjYXJiPjEwPC9jYXJiPg0KCTxmaWJlcj40PC9maWJlcj4NCgk8cHJvdGVpbj45PC9wcm90ZWluPg0KCTx2aXRhbWlucz4NCgkJPGE%MDwvYT4NCgkJPGM%MDwvYz4NCgk8L3ZpdGFtaW5zPg0KCTxtaW5lcmFscz4NCgkJPGNhPjA8L2NhPg0KCQk8ZmU%MDwvZmU%DQoJPC9taW5lcmFscz4NCjwvZm9vZD4NCg0KPGZvb2Q%DQoJPG5hbWU%VHJ1ZmZsZXMsIERhcmsgQ2hvY29sYXRlPC9uYW1lPg0KCTxtZnI%THluZG9uJ3M8L21mcj4NCgk8c2VydmluZyB1bml0cz0iZyI%Mzk8L3NlcnZpbmc%DQoJPGNhbG9yaWVzIHRvdGFsPSIyMjAiIGZhdD0iMTcwIi8%DQoJPHRvdGFsLWZhdD4xOTwvdG90YWwtZmF0Pg0KCTxzYXR1cmF0ZWQtZmF0PjE0PC9zYXR1cmF0ZWQtZmF0Pg0KCTxjaG9sZXN0ZXJvbD4yNTwvY2hvbGVzdGVyb2w%DQoJPHNvZGl1bT4xMDwvc29kaXVtPg0KCTxjYXJiPjE2PC9jYXJiPg0KCTxmaWJlcj4xPC9maWJlcj4NCgk8cHJvdGVpbj4xPC9wcm90ZWluPg0KCTx2aXRhbWlucz4NCgkJPGE%MDwvYT4NCgkJPGM%MDwvYz4NCgk8L3ZpdGFtaW5zPg0KCTxtaW5lcmFscz4NCgkJPGNhPjA8L2NhPg0KCQk8ZmU%MDwvZmU%DQoJPC9taW5lcmFscz4NCjwvZm9vZD4NCg0KPC9udXRyaXRpb24%"}];
+haxe.Resource.content = [{ name : "sample-xml", data : "s6175:PD94bWwgdmVyc2lvbj0iMS4wIj8%DQo8bnV0cml0aW9uPg0KDQo8ZGFpbHktdmFsdWVzIGF0dD0idGVzdCI%DQoJPHRvdGFsLWZhdCB1bml0cz0iZyI%NjU8L3RvdGFsLWZhdD4NCgk8c2F0dXJhdGVkLWZhdCB1bml0cz0iZyI%MjA8L3NhdHVyYXRlZC1mYXQ%DQoJPGNob2xlc3Rlcm9sIHVuaXRzPSJtZyI%MzAwPC9jaG9sZXN0ZXJvbD4NCgk8c29kaXVtIHVuaXRzPSJtZyI%MjQwMDwvc29kaXVtPg0KCTxjYXJiIHVuaXRzPSJnIj4zMDA8L2NhcmI%DQoJPGZpYmVyIHVuaXRzPSJnIj4yNTwvZmliZXI%DQoJPHByb3RlaW4gdW5pdHM9ImciPjUwPC9wcm90ZWluPg0KPC9kYWlseS12YWx1ZXM%DQoNCjxmb29kPg0KCTxuYW1lPkF2b2NhZG8gRGlwPC9uYW1lPg0KCTxtZnI%U3VubnlkYWxlPC9tZnI%DQoJPHNlcnZpbmcgdW5pdHM9ImciPjI5PC9zZXJ2aW5nPg0KCTxjYWxvcmllcyB0b3RhbD0iMTEwIiBmYXQ9IjEwMCIvPg0KCTx0b3RhbC1mYXQ%MTE8L3RvdGFsLWZhdD4NCgk8c2F0dXJhdGVkLWZhdD4zPC9zYXR1cmF0ZWQtZmF0Pg0KCTxjaG9sZXN0ZXJvbD41PC9jaG9sZXN0ZXJvbD4NCgk8c29kaXVtPjIxMDwvc29kaXVtPg0KCTxjYXJiPjI8L2NhcmI%DQoJPGZpYmVyPjA8L2ZpYmVyPg0KCTxwcm90ZWluPjE8L3Byb3RlaW4%DQoJPHZpdGFtaW5zPg0KCQk8YT4wPC9hPg0KCQk8Yz4wPC9jPg0KCTwvdml0YW1pbnM%DQoJPG1pbmVyYWxzPg0KCQk8Y2E%MDwvY2E%DQoJCTxmZT4wPC9mZT4NCgk8L21pbmVyYWxzPg0KPC9mb29kPg0KDQo8Zm9vZD4NCgk8bmFtZT5CYWdlbHMsIE5ldyBZb3JrIFN0eWxlIDwvbmFtZT4NCgk8bWZyPlRob21wc29uPC9tZnI%DQoJPHNlcnZpbmcgdW5pdHM9ImciPjEwNDwvc2VydmluZz4NCgk8Y2Fsb3JpZXMgdG90YWw9IjMwMCIgZmF0PSIzNSIvPg0KCTx0b3RhbC1mYXQ%NDwvdG90YWwtZmF0Pg0KCTxzYXR1cmF0ZWQtZmF0PjE8L3NhdHVyYXRlZC1mYXQ%DQoJPGNob2xlc3Rlcm9sPjA8L2Nob2xlc3Rlcm9sPg0KCTxzb2RpdW0%NTEwPC9zb2RpdW0%DQoJPGNhcmI%NTQ8L2NhcmI%DQoJPGZpYmVyPjM8L2ZpYmVyPg0KCTxwcm90ZWluPjExPC9wcm90ZWluPg0KCTx2aXRhbWlucz4NCgkJPGE%MDwvYT4NCgkJPGM%MDwvYz4NCgk8L3ZpdGFtaW5zPg0KCTxtaW5lcmFscz4NCgkJPGNhPjg8L2NhPg0KCQk8ZmU%MjA8L2ZlPg0KCTwvbWluZXJhbHM%DQo8L2Zvb2Q%DQoNCjxmb29kPg0KCTxuYW1lPkJlZWYgRnJhbmtmdXJ0ZXIsIFF1YXJ0ZXIgUG91bmQgPC9uYW1lPg0KCTxtZnI%QXJtaXRhZ2U8L21mcj4NCgk8c2VydmluZyB1bml0cz0iZyI%MTE1PC9zZXJ2aW5nPg0KCTxjYWxvcmllcyB0b3RhbD0iMzcwIiBmYXQ9IjI5MCIvPg0KCTx0b3RhbC1mYXQ%MzI8L3RvdGFsLWZhdD4NCgk8c2F0dXJhdGVkLWZhdD4xNTwvc2F0dXJhdGVkLWZhdD4NCgk8Y2hvbGVzdGVyb2w%NjU8L2Nob2xlc3Rlcm9sPg0KCTxzb2RpdW0%MTEwMDwvc29kaXVtPg0KCTxjYXJiPjg8L2NhcmI%DQoJPGZpYmVyPjA8L2ZpYmVyPg0KCTxwcm90ZWluPjEzPC9wcm90ZWluPg0KCTx2aXRhbWlucz4NCgkJPGE%MDwvYT4NCgkJPGM%MjwvYz4NCgk8L3ZpdGFtaW5zPg0KCTxtaW5lcmFscz4NCgkJPGNhPjE8L2NhPg0KCQk8ZmU%NjwvZmU%DQoJPC9taW5lcmFscz4NCjwvZm9vZD4NCg0KPGZvb2Q%DQoJPG5hbWU%Q2hpY2tlbiBQb3QgUGllPC9uYW1lPg0KCTxtZnI%TGFrZXNvbjwvbWZyPg0KCTxzZXJ2aW5nIHVuaXRzPSJnIj4xOTg8L3NlcnZpbmc%DQoJPGNhbG9yaWVzIHRvdGFsPSI0MTAiIGZhdD0iMjAwIi8%DQoJPHRvdGFsLWZhdD4yMjwvdG90YWwtZmF0Pg0KCTxzYXR1cmF0ZWQtZmF0Pjk8L3NhdHVyYXRlZC1mYXQ%DQoJPGNob2xlc3Rlcm9sPjI1PC9jaG9sZXN0ZXJvbD4NCgk8c29kaXVtPjgxMDwvc29kaXVtPg0KCTxjYXJiPjQyPC9jYXJiPg0KCTxmaWJlcj4yPC9maWJlcj4NCgk8cHJvdGVpbj4xMDwvcHJvdGVpbj4NCgk8dml0YW1pbnM%DQoJCTxhPjIwPC9hPg0KCQk8Yz4yPC9jPg0KCTwvdml0YW1pbnM%DQoJPG1pbmVyYWxzPg0KCQk8Y2E%MjwvY2E%DQoJCTxmZT4xMDwvZmU%DQoJPC9taW5lcmFscz4NCjwvZm9vZD4NCg0KPGZvb2Q%DQoJPG5hbWU%Q29sZSBTbGF3PC9uYW1lPg0KCTxtZnI%RnJlc2ggUXVpY2s8L21mcj4NCgk8c2VydmluZyB1bml0cz0iIGN1cCI%MS41PC9zZXJ2aW5nPg0KCTxjYWxvcmllcyB0b3RhbD0iMjAiIGZhdD0iMCIvPg0KCTx0b3RhbC1mYXQ%MDwvdG90YWwtZmF0Pg0KCTxzYXR1cmF0ZWQtZmF0PjA8L3NhdHVyYXRlZC1mYXQ%DQoJPGNob2xlc3Rlcm9sPjA8L2Nob2xlc3Rlcm9sPg0KCTxzb2RpdW0%MTU8L3NvZGl1bT4NCgk8Y2FyYj41PC9jYXJiPg0KCTxmaWJlcj4yPC9maWJlcj4NCgk8cHJvdGVpbj4xPC9wcm90ZWluPg0KCTx2aXRhbWlucz4NCgkJPGE%MzA8L2E%DQoJCTxjPjQ1PC9jPg0KCTwvdml0YW1pbnM%DQoJPG1pbmVyYWxzPg0KCQk8Y2E%NDwvY2E%DQoJCTxmZT4yPC9mZT4NCgk8L21pbmVyYWxzPg0KPC9mb29kPg0KDQo8Zm9vZD4NCgk8bmFtZT5FZ2dzPC9uYW1lPg0KCTxtZnI%R29vZHBhdGg8L21mcj4NCgk8c2VydmluZyB1bml0cz0iZyI%NTA8L3NlcnZpbmc%DQoJPGNhbG9yaWVzIHRvdGFsPSI3MCIgZmF0PSI0MCIvPg0KCTx0b3RhbC1mYXQ%NC41PC90b3RhbC1mYXQ%DQoJPHNhdHVyYXRlZC1mYXQ%MS41PC9zYXR1cmF0ZWQtZmF0Pg0KCTxjaG9sZXN0ZXJvbD4yMTU8L2Nob2xlc3Rlcm9sPg0KCTxzb2RpdW0%NjU8L3NvZGl1bT4NCgk8Y2FyYj4xPC9jYXJiPg0KCTxmaWJlcj4wPC9maWJlcj4NCgk8cHJvdGVpbj42PC9wcm90ZWluPg0KCTx2aXRhbWlucz4NCgkJPGE%NjwvYT4NCgkJPGM%MDwvYz4NCgk8L3ZpdGFtaW5zPg0KCTxtaW5lcmFscz4NCgkJPGNhPjI8L2NhPg0KCQk8ZmU%NDwvZmU%DQoJPC9taW5lcmFscz4NCjwvZm9vZD4NCg0KPGZvb2Q%DQoJPG5hbWU%SGF6ZWxudXQgU3ByZWFkPC9uYW1lPg0KCTxtZnI%RmVycmVpcmE8L21mcj4NCgk8c2VydmluZyB1bml0cz0idGJzcCI%Mjwvc2VydmluZz4NCgk8Y2Fsb3JpZXMgdG90YWw9IjIwMCIgZmF0PSI5MCIvPg0KCTx0b3RhbC1mYXQ%MTA8L3RvdGFsLWZhdD4NCgk8c2F0dXJhdGVkLWZhdD4yPC9zYXR1cmF0ZWQtZmF0Pg0KCTxjaG9sZXN0ZXJvbD4wPC9jaG9sZXN0ZXJvbD4NCgk8c29kaXVtPjIwPC9zb2RpdW0%DQoJPGNhcmI%MjM8L2NhcmI%DQoJPGZpYmVyPjI8L2ZpYmVyPg0KCTxwcm90ZWluPjM8L3Byb3RlaW4%DQoJPHZpdGFtaW5zPg0KCQk8YT4wPC9hPg0KCQk8Yz4wPC9jPg0KCTwvdml0YW1pbnM%DQoJPG1pbmVyYWxzPg0KCQk8Y2E%NjwvY2E%DQoJCTxmZT40PC9mZT4NCgk8L21pbmVyYWxzPg0KPC9mb29kPg0KDQo8Zm9vZD4NCgk8bmFtZT5Qb3RhdG8gQ2hpcHM8L25hbWU%DQoJPG1mcj5MZWVzPC9tZnI%DQoJPHNlcnZpbmcgdW5pdHM9ImciPjI4PC9zZXJ2aW5nPg0KCTxjYWxvcmllcyB0b3RhbD0iMTUwIiBmYXQ9IjkwIi8%DQoJPHRvdGFsLWZhdD4xMDwvdG90YWwtZmF0Pg0KCTxzYXR1cmF0ZWQtZmF0PjM8L3NhdHVyYXRlZC1mYXQ%DQoJPGNob2xlc3Rlcm9sPjA8L2Nob2xlc3Rlcm9sPg0KCTxzb2RpdW0%MTgwPC9zb2RpdW0%DQoJPGNhcmI%MTU8L2NhcmI%DQoJPGZpYmVyPjE8L2ZpYmVyPg0KCTxwcm90ZWluPjI8L3Byb3RlaW4%DQoJPHZpdGFtaW5zPg0KCQk8YT4wPC9hPg0KCQk8Yz4xMDwvYz4NCgk8L3ZpdGFtaW5zPg0KCTxtaW5lcmFscz4NCgkJPGNhPjA8L2NhPg0KCQk8ZmU%MDwvZmU%DQoJPC9taW5lcmFscz4NCjwvZm9vZD4NCg0KPGZvb2Q%DQoJPG5hbWU%U295IFBhdHRpZXMsIEdyaWxsZWQ8L25hbWU%DQoJPG1mcj5HYXJkZW5wcm9kdWN0czwvbWZyPg0KCTxzZXJ2aW5nIHVuaXRzPSJnIj45Njwvc2VydmluZz4NCgk8Y2Fsb3JpZXMgdG90YWw9IjE2MCIgZmF0PSI0NSIvPg0KCTx0b3RhbC1mYXQ%NTwvdG90YWwtZmF0Pg0KCTxzYXR1cmF0ZWQtZmF0PjA8L3NhdHVyYXRlZC1mYXQ%DQoJPGNob2xlc3Rlcm9sPjA8L2Nob2xlc3Rlcm9sPg0KCTxzb2RpdW0%NDIwPC9zb2RpdW0%DQoJPGNhcmI%MTA8L2NhcmI%DQoJPGZpYmVyPjQ8L2ZpYmVyPg0KCTxwcm90ZWluPjk8L3Byb3RlaW4%DQoJPHZpdGFtaW5zPg0KCQk8YT4wPC9hPg0KCQk8Yz4wPC9jPg0KCTwvdml0YW1pbnM%DQoJPG1pbmVyYWxzPg0KCQk8Y2E%MDwvY2E%DQoJCTxmZT4wPC9mZT4NCgk8L21pbmVyYWxzPg0KPC9mb29kPg0KDQo8Zm9vZD4NCgk8bmFtZT5UcnVmZmxlcywgRGFyayBDaG9jb2xhdGU8L25hbWU%DQoJPG1mcj5MeW5kb24nczwvbWZyPg0KCTxzZXJ2aW5nIHVuaXRzPSJnIj4zOTwvc2VydmluZz4NCgk8Y2Fsb3JpZXMgdG90YWw9IjIyMCIgZmF0PSIxNzAiLz4NCgk8dG90YWwtZmF0PjE5PC90b3RhbC1mYXQ%DQoJPHNhdHVyYXRlZC1mYXQ%MTQ8L3NhdHVyYXRlZC1mYXQ%DQoJPGNob2xlc3Rlcm9sPjI1PC9jaG9sZXN0ZXJvbD4NCgk8c29kaXVtPjEwPC9zb2RpdW0%DQoJPGNhcmI%MTY8L2NhcmI%DQoJPGZpYmVyPjE8L2ZpYmVyPg0KCTxwcm90ZWluPjE8L3Byb3RlaW4%DQoJPHZpdGFtaW5zPg0KCQk8YT4wPC9hPg0KCQk8Yz4wPC9jPg0KCTwvdml0YW1pbnM%DQoJPG1pbmVyYWxzPg0KCQk8Y2E%MDwvY2E%DQoJCTxmZT4wPC9mZT4NCgk8L21pbmVyYWxzPg0KPC9mb29kPg0KDQo8L251dHJpdGlvbj4"}];
 PerfTestRunner.SECOND_FACTOR = 1;
 haxe.Unserializer.DEFAULT_RESOLVER = Type;
 haxe.Unserializer.BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
 haxe.Unserializer.CODES = null;
 xmlTools.E4X._pool = new Array();
 TestE4XPerformance.main();
+
+//@ sourceMappingURL=TestE4XPerformance.js.map

@@ -32,7 +32,6 @@ class PerfTestRunner
 		var test:PerfTest =  (_currentTest == -1?_funcBenchmark:_tests[_currentTest]);
 		trace("Running Test: "+test.name);
 		var start:Float = Timer.stamp();
-		trace(start);
 		var func:Void->Void = test.testFunc;
 		for (i in 0 ... test.iterations) {
 			func();

@@ -28,7 +28,9 @@ class TestE4XMacro
 		
 		test("Child Has Attribute", within.a("id"), E4X.doRetAttribs(E4X.getNew(within).a(function(attName:String, attVal:String, xml:Xml):Bool { return attName == "id"; } )));
 		
-		test("Child Non-Null Attribute", within.child(a("id") != null), E4X.doRetNodes(E4X.getNew(within).child(function(xml:Xml, _i:Int):Bool return E4X.doHasAttribs(E4X.getNew(xml).a(function(attName:String, attVal:String, xml:Xml):Bool {  return attName == "id"; } )) != null )));
+		test("Child Non-Null Attribute", within.child(a("id") != null), E4X.doRetNodes(E4X.getNew(within).child(function(xml:Xml, _i:Int):Bool return E4X.doGetAttribs(E4X.getNew(xml).a(function(attName:String, attVal:String, xml:Xml):Bool {  return attName == "id"; } )) != null )));
+		
+		test("Child Matched Attribute", within.child(a("id") != "test"), E4X.doRetNodes(E4X.getNew(within).child(function(xml:Xml, _i:Int):Bool return E4X.doGetAttribs(E4X.getNew(xml).a(function(attName:String, attVal:String, xml:Xml):Bool {  return attName == "id"; } )) != "test" )));
 		
 		test("Child by name", within.node, E4X.doRetNodes(E4X.getNew(within).child(function(xml:Xml, _i:Int):Bool { return xml.nodeName == "node";} )));
 		
@@ -45,7 +47,7 @@ class TestE4XMacro
 	}
 	
 	@:macro public static function test(testName:String, expr:Expr, match:Expr):Expr {
-		expr = E4X.doE4X(expr, true, false, null, true, null);
+		expr = E4X.doE4X(expr, true, false, null, true, null, ReturnType.List);
 		var s1:String = cleanStr(Std.string(expr));
 		var s2:String = cleanStr(Std.string(match));
 		if (s1!=s2) {
