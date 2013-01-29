@@ -1,0 +1,7 @@
+<mlib bin="../bin">
+	<resources>
+		<resource type="src" path="../src" />
+		<resource type="license" path="license.mtt" />
+		<resource type="run" path="../projects/XmlCombiner/bin/XmlCombiner.n" />
+	</resources>
+</mlib>
