@@ -39,39 +39,45 @@ class E4X
 			
 			switch(returnType) {
 				case Str:
-					switch(wrapInfo.type) {
-						case Node, IndNode:
-							return macro E4X.doGetNodeNames($expr);
-						case Attribute:
-							return macro E4X.doGetAttribs($expr);
-						case Text:
-							return macro E4X.doGetText($expr);
-						default:
-							return macro E4X.doStr($expr);
+					if(wrapInfo.type!=null){
+						switch(wrapInfo.type) {
+							case Node, IndNode:
+								return macro E4X.doGetNodeNames($expr);
+							case Attribute:
+								return macro E4X.doGetAttribs($expr);
+							case Text:
+								return macro E4X.doGetText($expr);
+						}
+					}else {
+						return macro E4X.doStr($expr);
 					}
 					
 				case Boolean:
-					switch(wrapInfo.type) {
-						case Node, IndNode:
-							return macro E4X.doHasNodes($expr);
-						case Attribute:
-							return macro E4X.doHasAttribs($expr);
-						case Text:
-							return macro E4X.doHasText($expr);
-						default:
-							return macro E4X.doHas($expr);
+					if(wrapInfo.type!=null){
+						switch(wrapInfo.type) {
+							case Node, IndNode:
+								return macro E4X.doHasNodes($expr);
+							case Attribute:
+								return macro E4X.doHasAttribs($expr);
+							case Text:
+								return macro E4X.doHasText($expr);
+						}
+					}else {
+						return macro E4X.doHas($expr);
 					}
 					
 				default:
-					switch(wrapInfo.type) {
-						case Node, IndNode:
-							return macro E4X.doRetNodes($expr);
-						case Attribute:
-							return macro E4X.doRetAttribs($expr);
-						case Text:
-							return macro E4X.doRetText($expr);
-						default:
-							return macro E4X.doRet($expr);
+					if(wrapInfo.type!=null){
+						switch(wrapInfo.type) {
+							case Node, IndNode:
+								return macro E4X.doRetNodes($expr);
+							case Attribute:
+								return macro E4X.doRetAttribs($expr);
+							case Text:
+								return macro E4X.doRetText($expr);
+						}
+					}else {
+						return macro E4X.doRet($expr);
 					}
 					
 			}
