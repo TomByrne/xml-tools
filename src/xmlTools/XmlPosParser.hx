@@ -1,0 +1,382 @@
+/****
+* Copyright 2013 tbyrne.org All rights reserved.
+* 
+* Redistribution and use in source and binary forms, with or without modification, are
+* permitted provided that the following conditions are met:
+* 
+*    1. Redistributions of source code must retain the above copyright notice, this list of
+*       conditions and the following disclaimer.
+* 
+*    2. Redistributions in binary form must reproduce the above copyright notice, this list
+*       of conditions and the following disclaimer in the documentation and/or other materials
+*       provided with the distribution.
+* 
+* THIS SOFTWARE IS PROVIDED BY MASSIVE INTERACTIVE "AS IS" AND ANY EXPRESS OR IMPLIED
+* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+* FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL MASSIVE INTERACTIVE OR
+* CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+* CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+* SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+* NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+* ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+* 
+* The views and conclusions contained in the software and documentation are those of the
+* authors and should not be interpreted as representing official policies, either expressed
+* or implied, of Massive Interactive.
+****/
+
+package xmlTools;
+
+using StringTools;
+
+/* poor'man enum : reduce code size + a bit faster since inlined */
+extern private class S {
+	public static inline var IGNORE_SPACES 	= 0;
+	public static inline var BEGIN			= 1;
+	public static inline var BEGIN_NODE		= 2;
+	public static inline var TAG_NAME		= 3;
+	public static inline var BODY			= 4;
+	public static inline var ATTRIB_NAME	= 5;
+	public static inline var EQUALS			= 6;
+	public static inline var ATTVAL_BEGIN	= 7;
+	public static inline var ATTRIB_VAL		= 8;
+	public static inline var CHILDS			= 9;
+	public static inline var CLOSE			= 10;
+	public static inline var WAIT_END		= 11;
+	public static inline var WAIT_END_RET	= 12;
+	public static inline var PCDATA			= 13;
+	public static inline var HEADER			= 14;
+	public static inline var COMMENT		= 15;
+	public static inline var DOCTYPE		= 16;
+	public static inline var CDATA			= 17;
+}
+
+import haxe.macro.Expr;
+import haxe.macro.Context;
+interface IXmlWithPos {
+	public function getRoot():Xml;
+	public function getPos(xml:Xml, ?attName:String):Position;
+}
+import cmtc.ds.hash.ObjectHash;
+class XmlWithPos implements IXmlWithPos{
+	
+	private var _xml:Xml;
+	private var _file:String;
+	private var _attLookup:ObjectHash<Xml, Hash<Position>>;
+	private var _elemLookup:ObjectHash<Xml, Position>;
+	
+	public function new(xml:Xml, file:String) {
+		_xml = xml;
+		_file = file;
+		_attLookup = new ObjectHash();
+		_elemLookup = new ObjectHash();
+	}
+	
+	public function getRoot():Xml {
+		return _xml;
+	}
+	public function getPos(xml:Xml, ?attName:String):Position {
+		if (attName == null) {
+			return _elemLookup.get(xml);
+		}else{
+			var list:Hash<Position> = _attLookup.get(xml);
+			if (list != null && list.exists(attName)) {
+				return list.get(attName);
+			}else {
+				return _elemLookup.get(xml);
+			}
+		}
+	}
+	public function setPos(xml:Xml, attName:String, min:Int, max:Int):Void {
+		var pos = Context.makePosition( { min:min, max:max, file:_file } );
+		if (attName == null) {
+			_elemLookup.set(xml, pos);
+		}else{
+			var list =  _attLookup.get(xml);
+			if (list == null) {
+				list = new Hash();
+				_attLookup.set(xml, list);
+			}
+			list.set(attName, pos);
+		}
+	}
+}
+
+class XmlPosParser
+{
+	static public function parse(str:String, file:String):IXmlWithPos
+	{
+		
+		var doc = Xml.createDocument();
+		var ret = new XmlWithPos(doc, file);
+		ret.setPos(doc, null, 0, str.length);
+		doParse(ret, str, 0, doc);
+		return ret;
+	}
+	
+	static function doParse(posLookup:XmlWithPos, str:String, p:Int = 0, ?parent:Xml):Int
+	{
+		var xml:Xml = null;
+		var state = S.BEGIN;
+		var next = S.BEGIN;
+		var aname = null;
+		var start = 0;
+		var nsubs = 0;
+		var nbrackets = 0;
+		var c = str.fastCodeAt(p);
+
+		while (!c.isEOF())
+		{
+			switch(state)
+			{
+				case S.IGNORE_SPACES:
+					switch(c)
+					{
+						case
+							'\n'.code,
+							'\r'.code,
+							'\t'.code,
+							' '.code:
+						default:
+							state = next;
+							continue;
+					}
+				case S.BEGIN:
+					switch(c)
+					{
+						case '<'.code:
+							state = S.IGNORE_SPACES;
+							next = S.BEGIN_NODE;
+						default:
+							start = p;
+							state = S.PCDATA;
+							continue;
+					}
+				case S.PCDATA:
+					if (c == '<'.code)
+					{
+						var child = Xml.createPCData(str.substr(start, p - start));
+						posLookup.setPos(child, null, start, p);
+						parent.addChild(child);
+						nsubs++;
+						state = S.IGNORE_SPACES;
+						next = S.BEGIN_NODE;
+					}
+				case S.CDATA:
+					if (c == ']'.code && str.fastCodeAt(p + 1) == ']'.code && str.fastCodeAt(p + 2) == '>'.code)
+					{
+						var child = Xml.createCData(str.substr(start, p - start));
+						posLookup.setPos(child, null, start, p);
+						parent.addChild(child);
+						nsubs++;
+						p += 2;
+						state = S.BEGIN;
+					}
+				case S.BEGIN_NODE:
+					switch(c)
+					{
+						case '!'.code:
+							if (str.fastCodeAt(p + 1) == '['.code)
+							{
+								p += 2;
+								if (str.substr(p, 6).toUpperCase() != "CDATA[")
+									throw("Expected <![CDATA[");
+								p += 5;
+								state = S.CDATA;
+								start = p + 1;
+							}
+							else if (str.fastCodeAt(p + 1) == 'D'.code || str.fastCodeAt(p + 1) == 'd'.code)
+							{
+								if(str.substr(p + 2, 6).toUpperCase() != "OCTYPE")
+									throw("Expected <!DOCTYPE");
+								p += 8;
+								state = S.DOCTYPE;
+								start = p + 1;
+							}
+							else if( str.fastCodeAt(p + 1) != '-'.code || str.fastCodeAt(p + 2) != '-'.code )
+								throw("Expected <!--");
+							else
+							{
+								p += 2;
+								state = S.COMMENT;
+								start = p + 1;
+							}
+						case '?'.code:
+							state = S.HEADER;
+							start = p;
+						case '/'.code:
+							if( parent == null )
+								throw("Expected node name");
+							start = p + 1;
+							state = S.IGNORE_SPACES;
+							next = S.CLOSE;
+						default:
+							state = S.TAG_NAME;
+							start = p;
+							continue;
+					}
+				case S.TAG_NAME:
+					if (!isValidChar(c))
+					{
+						if( p == start )
+							throw("Expected node name");
+						xml = Xml.createElement(str.substr(start, p - start));
+						posLookup.setPos(xml, null, start, p);
+						parent.addChild(xml);
+						state = S.IGNORE_SPACES;
+						next = S.BODY;
+						continue;
+					}
+				case S.BODY:
+					switch(c)
+					{
+						case '/'.code:
+							state = S.WAIT_END;
+							nsubs++;
+						case '>'.code:
+							state = S.CHILDS;
+							nsubs++;
+						default:
+							state = S.ATTRIB_NAME;
+							start = p;
+							continue;
+					}
+				case S.ATTRIB_NAME:
+					if (!isValidChar(c))
+					{
+						var tmp;
+						if( start == p )
+							throw("Expected attribute name");
+						tmp = str.substr(start,p-start);
+						aname = tmp;
+						if( xml.exists(aname) )
+							throw("Duplicate attribute");
+						state = S.IGNORE_SPACES;
+						next = S.EQUALS;
+						continue;
+					}
+				case S.EQUALS:
+					switch(c)
+					{
+						case '='.code:
+							state = S.IGNORE_SPACES;
+							next = S.ATTVAL_BEGIN;
+						default:
+							throw("Expected =");
+					}
+				case S.ATTVAL_BEGIN:
+					switch(c)
+					{
+						case '"'.code, '\''.code:
+							state = S.ATTRIB_VAL;
+							start = p;
+						default:
+							throw("Expected \"");
+					}
+				case S.ATTRIB_VAL:
+					if (c == str.fastCodeAt(start))
+					{
+						var val = str.substr(start+1,p-start-1);
+						xml.set(aname, val);
+						posLookup.setPos(xml, aname, start+1, p);
+						state = S.IGNORE_SPACES;
+						next = S.BODY;
+					}
+				case S.CHILDS:
+					p = doParse(posLookup, str, p, xml);
+					start = p;
+					state = S.BEGIN;
+				case S.WAIT_END:
+					switch(c)
+					{
+						case '>'.code:
+							state = S.BEGIN;
+						default :
+							throw("Expected >");
+					}
+				case S.WAIT_END_RET:
+					switch(c)
+					{
+						case '>'.code:
+							if ( nsubs == 0 ) {
+								var child = Xml.createPCData("");
+								posLookup.setPos(child, null, start, start);
+								parent.addChild(child);
+							}
+							return p;
+						default :
+							throw("Expected >");
+					}
+				case S.CLOSE:
+					if (!isValidChar(c))
+					{
+						if( start == p )
+							throw("Expected node name");
+
+						var v = str.substr(start,p - start);
+						if (v != parent.nodeName)
+							throw "Expected </" +parent.nodeName + ">";
+
+						state = S.IGNORE_SPACES;
+						next = S.WAIT_END_RET;
+						continue;
+					}
+				case S.COMMENT:
+					if (c == '-'.code && str.fastCodeAt(p +1) == '-'.code && str.fastCodeAt(p + 2) == '>'.code)
+					{
+						var child = Xml.createComment(str.substr(start, p - start));
+						posLookup.setPos(child, null, start, p);
+						parent.addChild(child);
+						p += 2;
+						state = S.BEGIN;
+					}
+				case S.DOCTYPE:
+					if(c == '['.code)
+						nbrackets++;
+					else if(c == ']'.code)
+						nbrackets--;
+					else if (c == '>'.code && nbrackets == 0)
+					{
+						var child = Xml.createDocType(str.substr(start, p - start));
+						posLookup.setPos(child, null, start, p);
+						parent.addChild(child);
+						state = S.BEGIN;
+					}
+				case S.HEADER:
+					if (c == '?'.code && str.fastCodeAt(p + 1) == '>'.code)
+					{
+						p++;
+						var str = str.substr(start + 1, p - start - 2);
+						var child = Xml.createProlog(str);
+						posLookup.setPos(child, null, start, p);
+						parent.addChild(child);
+						state = S.BEGIN;
+					}
+			}
+			c = str.fastCodeAt(++p);
+		}
+		
+		if (state == S.BEGIN)
+		{
+			start = p;
+			state = S.PCDATA;
+		}
+		
+		if (state == S.PCDATA)
+		{
+			if (p != start || nsubs == 0) {
+				var child = Xml.createPCData(str.substr(start, p - start));
+				posLookup.setPos(child, null, start, p);
+				parent.addChild(child);
+			}
+			return p;
+		}
+		
+		throw "Unexpected end";
+	}
+	
+	static inline function isValidChar(c) {
+		return (c >= 'a'.code && c <= 'z'.code) || (c >= 'A'.code && c <= 'Z'.code) || (c >= '0'.code && c <= '9'.code) || c == ':'.code || c == '.'.code || c == '_'.code || c == '-'.code;
+	}
+}
