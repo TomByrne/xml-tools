@@ -33,10 +33,6 @@ import msignal.Signal;
 import org.tbyrne.io.IO;
 
 import xmlTools.combine.IXmlCombineTask;
-/**
- * ...
- * @author Tom Byrne
- */
 
 @:build(LazyInst.check())
 class XmlCombiner 

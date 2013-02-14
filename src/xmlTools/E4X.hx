@@ -154,7 +154,7 @@ class E4X
 					for (i in 0 ... eArr.length) {
 						eArr[i] = doE4X(eArr[i], wrapField, allowBlock, xmlParam, doXmlProps, filterType, null);
 					}
-					return { expr:EBlock(eArr), pos:Pos };
+					return { expr:EBlock(eArr), pos:pos };
 				}else{
 					throw "E4X can't handle blocks of code, just a single expression";
 				}
@@ -191,7 +191,7 @@ class E4X
 									}
 									if (newFilterType != null) {
 										wrapInfo.wrapped = true;
-										e = { expr:EField( { expr : ECall( { expr : EField( { expr : EConst(CIdent("E4X")), pos : pos }, "getNew"), pos : pos }, [ { expr : EConst(CIdent(xmlParam)), pos : pos } ]), pos : pos }, s), pos:Pos };
+										e = { expr:EField( { expr : ECall( { expr : EField( { expr : EConst(CIdent("E4X")), pos : pos }, "getNew"), pos : pos }, [ { expr : EConst(CIdent(xmlParam)), pos : pos } ]), pos : pos }, s), pos:pos };
 									}
 								default: // ignore
 							}
@@ -209,7 +209,7 @@ class E4X
 				switch(c) {
 					case CIdent(s):
 						if (xmlParam != null && doXmlProps && isXmlProp(s)) {
-							expr = { expr:EField( { expr:EConst(CIdent(xmlParam)), pos:Pos }, s), pos:Pos };
+							expr = { expr:EField( { expr:EConst(CIdent(xmlParam)), pos:pos }, s), pos:pos };
 							return checkExpr(expr, wrapField, allowBlock, xmlParam, false, wrapInfo, filterType);
 						}else if (wrapField && (filterType == null || s == xmlParam)) {
 							wrapInfo.wrapped = true;
@@ -259,7 +259,7 @@ class E4X
 					default:
 						retType = ReturnType.Boolean;
 				}
-				return { expr:EBinop(op, doE4X(e1, wrapField, allowBlock, xmlParam, doXmlProps, filterType, ReturnType.Str), doE4X(e2, wrapField, allowBlock, xmlParam, doXmlProps, filterType, retType)), pos:Pos };
+				return { expr:EBinop(op, doE4X(e1, wrapField, allowBlock, xmlParam, doXmlProps, filterType, ReturnType.Str), doE4X(e2, wrapField, allowBlock, xmlParam, doXmlProps, filterType, retType)), pos:pos };
 			default:
 				return expr;
 		}
@@ -285,7 +285,7 @@ class E4X
 			case EFunction( name , f ):
 				var xmlName:String = f.params[0].name;
 				f.expr = checkExpr(f.expr, true, true, xmlName, true, wrapInfo, filterType);
-				return { expr:EFunction(name, f), pos:Pos };
+				return { expr:EFunction(name, f), pos:pos };
 			case EReturn( e ):
 				expr = checkExpr(expr, true, false, "xml", true, wrapInfo, filterType);
 			default:

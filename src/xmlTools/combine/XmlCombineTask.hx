@@ -39,7 +39,11 @@ import xmlTools.combine.IXmlCombineTask;
 @:build(LazyInst.check())
 class XmlCombineTask implements IXmlCombineTask  {
 	
-	public static var XCF_NAMESPACE = "http://tbyrne.org/XCF";
+	public static var XI_NAMESPACE = "http://www.w3.org/2001/XInclude";
+	public static var XI_TAG_NAME = "include";
+	public static var XI_URL_ATT = "href";
+	public static var XI_IN_PARENT = "inParent";
+	public static var XI_PARSE = "parse";
 	
 	
 	@lazyInst
@@ -73,10 +77,10 @@ class XmlCombineTask implements IXmlCombineTask  {
 	private var _contentPath:String;
 	private var _withinDir:String;
 	private var _rootData:Xml;
-	private var _resources:Array<IInput<Xml>>;
-	private var _resourceToNode:ObjectHash<IInput<Xml>, Array<Xml>>;
-	private var _resourceToData:ObjectHash<IInput<Xml>, Xml>;
-	private var _rootResource : IInput<Xml>;
+	private var _resources:Array<IInput<String>>;
+	private var _resourceToNode:ObjectHash<IInput<String>, Array<Xml>>;
+	private var _resourceToData:ObjectHash<IInput<String>, Array<Xml>>;
+	private var _rootResource : IInput<String>;
 	private var _progress:Float = 0;
 	private var _total:Float = 0;
 	private var _state:XmlCombineTaskState;
@@ -121,13 +125,13 @@ class XmlCombineTask implements IXmlCombineTask  {
 		return path;
 	}
 
-	private function onRootStateChanged(from:IInput<Xml>) : Void {
+	private function onRootStateChanged(from:IInput<String>) : Void {
 		if(from.inputState==InputState.Loaded){
 			
-		
-			_rootData = _rootResource.getData();
+			Sys.println(_rootResource.getData());
+			_rootData = Xml.parse(_rootResource.getData());
 			
-			_resources = new Array<IInput<Xml>>();
+			_resources = new Array<IInput<String>>();
 			_resourceToNode = new ObjectHash();
 			_resourceToData = new ObjectHash();
 			
@@ -150,7 +154,7 @@ class XmlCombineTask implements IXmlCombineTask  {
 		var namespaces = root.attributes();
 		var xcfNs:String = null;
 		for (ns in namespaces) {
-			if (root.get(ns)==XCF_NAMESPACE) {
+			if (root.get(ns)==XI_NAMESPACE) {
 				xcfNs = ns.substr(ns.indexOf(":") + 1);
 				break;
 			}
@@ -158,15 +162,15 @@ class XmlCombineTask implements IXmlCombineTask  {
 		
 		var xcfTag:String;
 		if (xcfNs == null) {
-			xcfTag = "xml";
+			xcfTag = XI_TAG_NAME;
 		}else {
-			xcfTag = xcfNs + ":xml";
+			xcfTag = xcfNs + ":"+XI_TAG_NAME;
 		}
-		var nodes:Iterator<Xml> = E4X.x(root._(nodeType==Xml.Element && nodeName == xcfTag && a("url")));
+		var nodes:Iterator<Xml> = E4X.x(root._(nodeType==Xml.Element && nodeName == xcfTag && a(XI_URL_ATT)));
 		for(node in nodes){
 			addResource(node);
 		}
-		if(root.nodeName==xcfTag && root.get("url")!=null){
+		if(root.nodeName==xcfTag && root.get(XI_URL_ATT)!=null){
 			addResource(root);
 		}
 		if (allowCheck) checkState();
@@ -175,9 +179,9 @@ class XmlCombineTask implements IXmlCombineTask  {
 	}
 
 	private function addResource(node : Xml) : Void {
-		var url:String = node.get("url");
+		var url:String = node.get(XI_URL_ATT);
 		
-		var resource:IInput<Xml> = _inputProvider.getInput(Xml, createUri(url));
+		var resource:IInput<String> = _inputProvider.getInput(Xml, createUri(url));
 		
 		var list:Array<Xml> = _resourceToNode.get(resource);
 		if (list == null) {
@@ -191,33 +195,46 @@ class XmlCombineTask implements IXmlCombineTask  {
 		
 		_resources.push(resource);
 		if (resource.inputState == InputState.Loaded) {
-			combineNode(resource.getData().firstElement(), node);
+			combineNode(resource, node);
 		}else {
 			resource.read();
 			checkState();
 		}
 	}
-	private function onInputStateChanged(from:IInput<Xml>):Void {
+	private function onInputStateChanged(from:IInput<String>):Void {
 		var list:Array<Xml> = _resourceToNode.get(from);
-		if(from.inputState==InputState.Loaded){
-			var loadedData:Xml = from.getData().firstElement();
+		if (from.inputState == InputState.Loaded) {
+			var loadedStr = from.getData();
 			for (referenceNode in list) {
-				combineNode(loadedData, referenceNode);
+				combineNode(from, referenceNode);
 			}
-			_resourceToData.set(from,loadedData);
 		}else{
-			var loadedData:Xml = _resourceToData.get(from);
-			if(loadedData!=null){
-				for (referenceNode in list) {
-					uncombineNode(loadedData, referenceNode);
+			var nodeList:Array<Xml> = _resourceToData.get(from);
+			if (nodeList != null) {
+				for (i in 0...nodeList.length) {
+					uncombineNode(from, list[i], nodeList[i]);
 				}
-				_resourceToData.delete(from);
 			}
+			_resourceToData.delete(from);
 		}
 		checkState();
 	}
-	private function combineNode(childNode:Xml, referenceNode:Xml):Void {
-		if(referenceNode.get("inParent")=="true"){
+	private function combineNode(input:IInput<String>, referenceNode:Xml):Void {
+		var childNode:Xml;
+		if (referenceNode.get(XI_PARSE) == "text") {
+			childNode = Xml.createCData(input.getData());
+		}else {
+			childNode = Xml.parse(input.getData()).firstElement();
+		}	
+		
+		var nodeList:Array<Xml> = _resourceToData.get(input);
+		if (nodeList == null) {
+			nodeList = new Array();
+			_resourceToData.set(input, nodeList);
+		}
+		nodeList.push(childNode);
+				
+		if(referenceNode.get(XI_IN_PARENT)=="true"){
 			var atts:Iterator<String> = childNode.attributes();
 			for(att in atts){
 				referenceNode.parent.set(att, childNode.get(att));
@@ -232,8 +249,8 @@ class XmlCombineTask implements IXmlCombineTask  {
 			addResources(childNode, false);
 		}
 	}
-	private function uncombineNode(childNode:Xml, referenceNode:Xml):Void {
-		if (referenceNode.get("inParent") == "true") {
+	private function uncombineNode(input:IInput<String>, referenceNode:Xml, childNode:Xml):Void {
+		if (referenceNode.get(XI_IN_PARENT) == "true") {
 			// @todo - revert in parent behaviour
 		}else{
 			if (childNode != null && childNode.parent != null) {
@@ -275,7 +292,7 @@ class XmlCombineTask implements IXmlCombineTask  {
 		}
 		setState(state);
 	}
-	private function onProgressChanged(from:IInput<Xml>):Void {
+	private function onProgressChanged(from:IInput<String>):Void {
 		checkProgress();
 	}
 	private function checkProgress() : Void {

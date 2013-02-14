@@ -43,7 +43,6 @@ class MLoader implements IInputProvider
 	private var loaderCache:LoaderCache;
 	
 	public function new() {
-		trace("MLoader: ");
 		uriLookup = new Hash();
 		loaderCache = new LoaderCache();
 	}
@@ -154,6 +153,8 @@ class Input<T> implements IInput<T> {
 	
 	public function getData():T {
 		switch(type) {
+			case String:
+				return untyped loader.content;
 			case Xml:
 				return untyped Xml.parse(loader.content);
 			default:

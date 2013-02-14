@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<root xmlns:xcf="http://tbyrne.org/XCF" >
-	<xcf:xml url="child.xml"/>
-	<xcf:xml url="child.xml" inParent="true"/>
+<root xmlns:xi="http://www.w3.org/2001/XInclude" >
+	<xi:xml href="child.xml"/>
+	<xi:xml href="child.xml" inParent="true"/>
+	<xi:xml href="child.xml" parse="text"/>
 </root>
