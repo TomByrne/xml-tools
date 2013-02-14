@@ -1,33 +1,32 @@
 
 import org.tbyrne.io.MLoader;
-import xmlTools.combine.IXmlCombineTask;
-import xmlTools.combine.XmlCombineTask;
-import xmlTools.combine.XmlCombiner;
+import xmlTools.include.IXmlIncludeTask;
+import xmlTools.include.XmlIncludeTask;
+import xmlTools.include.XmlIncludeManager;
 import cmtc.ds.hash.ObjectHash;
 import sys.io.File;
 import sys.io.FileOutput;
 import sys.FileSystem;
 import xmlTools.XmlPrettyPrint;
 
-class XmlCombinerShell {
+class XmlIncluderShell {
 	
 	/**
 	 * Usage:
-		 * XmlCombiner.n root-file.xml -d C:/xml-directory/ -o C:/output-file.xml
+		 * XmlIncluderShell.n root-file.xml -d C:/xml-directory/ -o C:/output-file.xml
 	 * 
 	 */
    public static function main() {
-		new XmlCombinerShell();
+		new XmlIncluderShell();
    }
    
    
-   private var _xmlCombiner:XmlCombiner;
-   private var _taskToOutput:ObjectHash<IXmlCombineTask, String>;
+   private var _xmlIncluder:XmlIncludeManager;
+   private var _taskToOutput:ObjectHash<IXmlIncludeTask, String>;
    
    public function new() {
-		_taskToOutput = new ObjectHash<IXmlCombineTask, String>();
-		_xmlCombiner = new XmlCombiner(new MLoader());
-		new XmlCombineTask();
+		_taskToOutput = new ObjectHash<IXmlIncludeTask, String>();
+		_xmlIncluder = new XmlIncludeManager(new MLoader());
 		
 		var args = Sys.args();
 		var state:ArgState = None;
@@ -75,11 +74,11 @@ class XmlCombinerShell {
 			
 			Sys.println("\nCombining XML: ");
 			
-			var total:Int = _xmlCombiner.getTaskCount();
+			var total:Int = _xmlIncluder.getTaskCount();
 			for (i in 0 ... total) {
 				Sys.print("\n");
-				var task:IXmlCombineTask = _xmlCombiner.getTask(i);
-				task.startCombine();
+				var task:IXmlIncludeTask = _xmlIncluder.getTask(i);
+				task.startInclude();
 				var finished:Bool = false;
 				while (!finished) {
 					var print:String = "";
@@ -96,10 +95,10 @@ class XmlCombinerShell {
 					print += task.getRootFile() + " (" + perc + "%)";
 					
 					var state = task.getState();
-					if (state == XmlCombineTaskState.Failed) {
+					if (state == XmlIncludeTaskState.Failed) {
 						Sys.print(print + " - failed\r");
 						finished = true;
-					}else if(state==XmlCombineTaskState.Succeeded) {
+					}else if(state==XmlIncludeTaskState.Succeeded) {
 						Sys.print(print + " - success\r");
 						finished = true;
 					}else {
@@ -107,12 +106,12 @@ class XmlCombinerShell {
 						Sys.sleep(1);
 					}
 				}
-				if (task.getState() == XmlCombineTaskState.Succeeded) {
+				if (task.getState() == XmlIncludeTaskState.Succeeded) {
 					var outputFile:String = _taskToOutput.get(task);
 					var printed:String = XmlPrettyPrint.print(task.getData());
 					File.saveContent(outputFile, printed);
 				}else {
-					Sys.println("XML Combine Failed: "+task.getRootFile());
+					Sys.println("XML Include Failed: "+task.getRootFile());
 				}
 			}
 			Sys.println("\nFinished Combining");
@@ -125,7 +124,7 @@ class XmlCombinerShell {
 			outputFileError(rootFile);
 		}
 		
-		var task:IXmlCombineTask = _xmlCombiner.add(rootFile, withinDirectory);
+		var task:IXmlIncludeTask = _xmlIncluder.add(rootFile, withinDirectory);
 		_taskToOutput.set(task, outputFile);
 	}
 	public function initialArgError():Void {
@@ -137,7 +136,7 @@ class XmlCombinerShell {
 		Sys.exit(2);
 	}
 	public function printHelp():Void {
-		Sys.print("\nUsage:\nXmlCombiner.n root-file.xml -d C:/xml-directory/ -o C:/output-file.xml -- root-file2.xml -o C:/output-file2.xml\n");
+		Sys.print("\nUsage:\nXmlIncluder.n root-file.xml -d C:/xml-directory/ -o C:/output-file.xml -- root-file2.xml -o C:/output-file2.xml\n");
 		Sys.exit(0);
 	}
 }

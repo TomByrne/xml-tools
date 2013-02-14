@@ -26,7 +26,7 @@
 * or implied, of Massive Interactive.
 ****/
 
-package xmlTools.combine;
+package xmlTools.include;
 
 import msignal.Signal;
 /**
@@ -34,14 +34,14 @@ import msignal.Signal;
  * @author Tom Byrne
  */
 
-interface IXmlCombineTask 
+interface IXmlIncludeTask 
 {
-	public var progressChanged(get_progressChanged, null):Signal1<IXmlCombineTask>;
-	public var stateChanged(get_stateChanged, null):Signal1<IXmlCombineTask>;
+	public var progressChanged(get_progressChanged, null):Signal1<IXmlIncludeTask>;
+	public var stateChanged(get_stateChanged, null):Signal1<IXmlIncludeTask>;
 	
-	public function startCombine():Void;
+	public function startInclude():Void;
 	
-	public function getState():XmlCombineTaskState;
+	public function getState():XmlIncludeTaskState;
 	public function getData():Xml;
 	public function getRootFile():String;
 	public function getProgress():Float;
@@ -49,7 +49,7 @@ interface IXmlCombineTask
 	
 }
 
-enum XmlCombineTaskState {
+enum XmlIncludeTaskState {
 	Waiting;
 	Working;
 	Succeeded;

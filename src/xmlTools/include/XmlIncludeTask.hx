@@ -26,7 +26,7 @@
 * or implied, of Massive Interactive.
 ****/
 
-package xmlTools.combine;
+package xmlTools.include;
 
 import haxe.xml.Fast;
 import msignal.Signal;
@@ -34,10 +34,10 @@ import cmtc.ds.hash.ObjectHash;
 import org.tbyrne.io.IO;
 import xmlTools.E4X;
 
-import xmlTools.combine.IXmlCombineTask;
+import xmlTools.include.IXmlIncludeTask;
 
 @:build(LazyInst.check())
-class XmlCombineTask implements IXmlCombineTask  {
+class XmlIncludeTask implements IXmlIncludeTask  {
 	
 	public static var XI_NAMESPACE = "http://www.w3.org/2001/XInclude";
 	public static var XI_TAG_NAME = "include";
@@ -47,9 +47,9 @@ class XmlCombineTask implements IXmlCombineTask  {
 	
 	
 	@lazyInst
-	public var progressChanged:Signal1<IXmlCombineTask>;
+	public var progressChanged:Signal1<IXmlIncludeTask>;
 	@lazyInst
-	public var stateChanged:Signal1<IXmlCombineTask>;
+	public var stateChanged:Signal1<IXmlIncludeTask>;
 	
 	
 	
@@ -66,7 +66,7 @@ class XmlCombineTask implements IXmlCombineTask  {
 	public function getTotal():Float {
 		return _total;
 	}
-	public function getState():XmlCombineTaskState {
+	public function getState():XmlIncludeTaskState {
 		return _state;
 	}
 	
@@ -83,32 +83,32 @@ class XmlCombineTask implements IXmlCombineTask  {
 	private var _rootResource : IInput<String>;
 	private var _progress:Float = 0;
 	private var _total:Float = 0;
-	private var _state:XmlCombineTaskState;
+	private var _state:XmlIncludeTaskState;
 
 	public function new(inputProvider:IInputProvider = null, contentPath:String = null, withinDir:String = null) {
-		_state = XmlCombineTaskState.Waiting;
+		_state = XmlIncludeTaskState.Waiting;
 		_inputProvider = inputProvider;
 		_contentPath = contentPath;
 		_withinDir = withinDir;
 	}
 	
-	private function setState(state:XmlCombineTaskState):Void {
+	private function setState(state:XmlIncludeTaskState):Void {
 		if (state == _state) return;
 		
 		_state = state;
 		LazyInst.exec(stateChanged.dispatch(this));
 	}
 	
-	public function startCombine():Void {
+	public function startInclude():Void {
 		if(_rootResource!=null){
 			_inputProvider.returnInput(_rootResource);
 			_rootResource = null;
 		}
 		
-		setState(XmlCombineTaskState.Working);
+		setState(XmlIncludeTaskState.Working);
 		
 		if(_contentPath!=null){
-			_rootResource = _inputProvider.getInput(Xml, createUri(_contentPath));
+			_rootResource = _inputProvider.getInput(String, createUri(_contentPath));
 			_rootResource.inputStateChanged.add(onRootStateChanged);
 			onRootStateChanged(_rootResource);
 			_rootResource.read();
@@ -128,7 +128,6 @@ class XmlCombineTask implements IXmlCombineTask  {
 	private function onRootStateChanged(from:IInput<String>) : Void {
 		if(from.inputState==InputState.Loaded){
 			
-			Sys.println(_rootResource.getData());
 			_rootData = Xml.parse(_rootResource.getData());
 			
 			_resources = new Array<IInput<String>>();
@@ -181,7 +180,7 @@ class XmlCombineTask implements IXmlCombineTask  {
 	private function addResource(node : Xml) : Void {
 		var url:String = node.get(XI_URL_ATT);
 		
-		var resource:IInput<String> = _inputProvider.getInput(Xml, createUri(url));
+		var resource:IInput<String> = _inputProvider.getInput(String, createUri(url));
 		
 		var list:Array<Xml> = _resourceToNode.get(resource);
 		if (list == null) {
@@ -195,7 +194,7 @@ class XmlCombineTask implements IXmlCombineTask  {
 		
 		_resources.push(resource);
 		if (resource.inputState == InputState.Loaded) {
-			combineNode(resource, node);
+			includeNode(resource, node);
 		}else {
 			resource.read();
 			checkState();
@@ -206,20 +205,20 @@ class XmlCombineTask implements IXmlCombineTask  {
 		if (from.inputState == InputState.Loaded) {
 			var loadedStr = from.getData();
 			for (referenceNode in list) {
-				combineNode(from, referenceNode);
+				includeNode(from, referenceNode);
 			}
 		}else{
 			var nodeList:Array<Xml> = _resourceToData.get(from);
 			if (nodeList != null) {
 				for (i in 0...nodeList.length) {
-					uncombineNode(from, list[i], nodeList[i]);
+					unincludeNode(from, list[i], nodeList[i]);
 				}
 			}
 			_resourceToData.delete(from);
 		}
 		checkState();
 	}
-	private function combineNode(input:IInput<String>, referenceNode:Xml):Void {
+	private function includeNode(input:IInput<String>, referenceNode:Xml):Void {
 		var childNode:Xml;
 		if (referenceNode.get(XI_PARSE) == "text") {
 			childNode = Xml.createCData(input.getData());
@@ -246,10 +245,10 @@ class XmlCombineTask implements IXmlCombineTask  {
 			}
 		}else {
 			referenceNode.parent.addChild(childNode);
-			addResources(childNode, false);
+			if(childNode.nodeType==Xml.Element)addResources(childNode, false);
 		}
 	}
-	private function uncombineNode(input:IInput<String>, referenceNode:Xml, childNode:Xml):Void {
+	private function unincludeNode(input:IInput<String>, referenceNode:Xml, childNode:Xml):Void {
 		if (referenceNode.get(XI_IN_PARENT) == "true") {
 			// @todo - revert in parent behaviour
 		}else{
@@ -259,31 +258,31 @@ class XmlCombineTask implements IXmlCombineTask  {
 		}
 	}
 	private function checkState() : Void {
-		var state:XmlCombineTaskState = XmlCombineTaskState.Waiting;
+		var state:XmlIncludeTaskState = XmlIncludeTaskState.Waiting;
 		if(_rootResource!=null){
 			switch(_rootResource.inputState) {
 				case InputState.Loaded:
-					state = XmlCombineTaskState.Succeeded;
+					state = XmlIncludeTaskState.Succeeded;
 				case InputState.Loading:
-					state = XmlCombineTaskState.Working;
+					state = XmlIncludeTaskState.Working;
 				case InputState.Failed:
-					setState(XmlCombineTaskState.Failed);
+					setState(XmlIncludeTaskState.Failed);
 					return;
 				default:
 					// ignore
 			}
 		}
-		if(_resources!=null){
-			state = XmlCombineTaskState.Waiting;
+		if(_resources!=null && _resources.length>0){
+			state = XmlIncludeTaskState.Waiting;
 			for (resource in _resources) {
 				switch(resource.inputState) {
 					case InputState.Loaded:
-						if(state == XmlCombineTaskState.Waiting)
-							state = XmlCombineTaskState.Succeeded;
+						if(state == XmlIncludeTaskState.Waiting)
+							state = XmlIncludeTaskState.Succeeded;
 					case InputState.Loading:
-						state = XmlCombineTaskState.Working;
+						state = XmlIncludeTaskState.Working;
 					case InputState.Failed:
-						state = XmlCombineTaskState.Failed;
+						state = XmlIncludeTaskState.Failed;
 						break;
 					default:
 						// ignore

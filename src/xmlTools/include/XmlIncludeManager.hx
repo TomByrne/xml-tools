@@ -26,45 +26,45 @@
 * or implied, of Massive Interactive.
 ****/
 
-package xmlTools.combine;
+package xmlTools.include;
 
 import haxe.io.Bytes;
 import msignal.Signal;
 import org.tbyrne.io.IO;
 
-import xmlTools.combine.IXmlCombineTask;
+import xmlTools.include.IXmlIncludeTask;
 
 @:build(LazyInst.check())
-class XmlCombiner 
+class XmlIncludeManager 
 {
 	@lazyInst
-	public var progressChanged:Signal1<XmlCombiner>;
+	public var progressChanged:Signal1<XmlIncludeManager>;
 	@lazyInst
-	public var completeChanged:Signal1<XmlCombiner>;
+	public var completeChanged:Signal1<XmlIncludeManager>;
 	
 	public var inputProvider(get_inputProvider, null):IInputProvider;
 	private function get_inputProvider():IInputProvider {
 		return _inputProvider;
 	}
 	
-	private var _tasks:Array<XmlCombineTask>;
+	private var _tasks:Array<XmlIncludeTask>;
 	private var _finishedTasks:Int;
 	private var _complete:Bool;
 	private var _progress:Float = 0;
 	private var _total:Float = 0;
 	private var _inputProvider:IInputProvider;
 	private var _currentIndex:Int = 0;
-	private var _currentTask:XmlCombineTask;
+	private var _currentTask:XmlIncludeTask;
 
 	public function new(inputProvider:IInputProvider) {
 		_complete = true;
-		_tasks = new Array<XmlCombineTask>();
+		_tasks = new Array<XmlIncludeTask>();
 		_finishedTasks = 0;
 		_inputProvider = inputProvider;
 	}
 	
-	public var currentTask(get_currentTask, null):IXmlCombineTask;
-	public function get_currentTask():IXmlCombineTask {
+	public var currentTask(get_currentTask, null):IXmlIncludeTask;
+	public function get_currentTask():IXmlIncludeTask {
 		return _currentTask;
 	}
 	
@@ -84,12 +84,12 @@ class XmlCombiner
 	public function getTaskCount():Int {
 		return _tasks.length;
 	}
-	public function getTask(i:Int):IXmlCombineTask {
+	public function getTask(i:Int):IXmlIncludeTask {
 		return _tasks[i];
 	}
 	
-	public function add(rootFile:String, ?withinDir:String):IXmlCombineTask {
-		var ret:XmlCombineTask = new XmlCombineTask(_inputProvider, rootFile, withinDir);
+	public function add(rootFile:String, ?withinDir:String):IXmlIncludeTask {
+		var ret:XmlIncludeTask = new XmlIncludeTask(_inputProvider, rootFile, withinDir);
 		_tasks.push(ret);
 		ret.progressChanged.add(onProgressChanged);
 		ret.stateChanged.add(onStateChanged);
@@ -98,11 +98,11 @@ class XmlCombiner
 		return ret;
 	}
 	
-	public function startCombine():Void {
+	public function startInclude():Void {
 		_currentIndex = 0;
-		doNextCombine();
+		doNextInclude();
 	}
-	private function doNextCombine():Void {
+	private function doNextInclude():Void {
 		if (_currentTask!=null) {
 			_currentTask.stateChanged.remove(onCurrentStateChanged);
 			_currentTask = null;
@@ -111,28 +111,28 @@ class XmlCombiner
 			_currentTask = _tasks[_currentIndex];
 			_currentTask.stateChanged.add(onCurrentStateChanged);
 			onCurrentStateChanged(_currentTask);
-			_currentTask.startCombine();
+			_currentTask.startInclude();
 		}else {
 			//setComplete(true);
 		}
 	}
 	
-	private function onCurrentStateChanged(from:IXmlCombineTask):Void {
+	private function onCurrentStateChanged(from:IXmlIncludeTask):Void {
 		switch (_currentTask.getState()) {
-			case XmlCombineTaskState.Succeeded, XmlCombineTaskState.Failed:
+			case XmlIncludeTaskState.Succeeded, XmlIncludeTaskState.Failed:
 				_currentIndex++;
-				doNextCombine();
+				doNextInclude();
 			default:
 				//ignore
 		}
 	}
 	
-	private function onProgressChanged(from:IXmlCombineTask):Void {
+	private function onProgressChanged(from:IXmlIncludeTask):Void {
 		checkProgress();
 	}
-	private function onStateChanged(from:IXmlCombineTask):Void {
+	private function onStateChanged(from:IXmlIncludeTask):Void {
 		switch (from.getState()) {
-			case XmlCombineTaskState.Succeeded, XmlCombineTaskState.Failed:
+			case XmlIncludeTaskState.Succeeded, XmlIncludeTaskState.Failed:
 				from.progressChanged.remove(onProgressChanged);
 				from.stateChanged.remove(onStateChanged);
 				checkComplete();
@@ -164,7 +164,7 @@ class XmlCombiner
 		var complete:Bool = true;
 		for (task in _tasks) {
 			switch(task.getState()) {
-				case XmlCombineTaskState.Waiting, XmlCombineTaskState.Working:
+				case XmlIncludeTaskState.Waiting, XmlIncludeTaskState.Working:
 					complete = false;
 				default:
 					// ignore
