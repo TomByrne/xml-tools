@@ -20,11 +20,9 @@
 * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-* 
-* The views and conclusions contained in the software and documentation are those of the
-* authors and should not be interpreted as representing official policies, either expressed
-* or implied, of Massive Interactive.
 ****/
+
+
 
 package org.tbyrne.io;
 
@@ -91,6 +89,8 @@ class Input<T> implements IInput<T> {
 	private var _progress:Float = 0;
 	private var _total:Float = 100;
 	
+	private var _lastError:String;
+	
 	public function new(type:Dynamic, loader:Loader<String>) {
 		this.loader = loader;
 		this.type = type;
@@ -113,6 +113,7 @@ class Input<T> implements IInput<T> {
 				setProgress(event.target.progress, 100);
 				
 			case LoaderEventType.Fail(error):
+				_lastError = Std.string(error);
 				setState(InputState.Failed);
 				
 			case LoaderEventType.Complete:
@@ -122,7 +123,6 @@ class Input<T> implements IInput<T> {
 	}
 	private function setState(state:InputState):Void {
 		if (_inputState == state) return;
-		
 		_inputState = state;
 		LazyInst.exec(inputStateChanged.dispatch(this));
 	}
@@ -151,6 +151,10 @@ class Input<T> implements IInput<T> {
 		return _total;
 	}
 	
+	public function getLastError():String {
+		return _lastError;
+	}
+	
 	public function getData():T {
 		switch(type) {
 			case String:
@@ -164,6 +168,7 @@ class Input<T> implements IInput<T> {
 	public function read():Void {
 		switch(_inputState) {
 			case InputState.Failed, InputState.Unloaded:
+				Sys.println("loader: "+loader.url);
 				loader.load();
 			default:
 				//ignore

@@ -20,11 +20,9 @@
 * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-* 
-* The views and conclusions contained in the software and documentation are those of the
-* authors and should not be interpreted as representing official policies, either expressed
-* or implied, of Massive Interactive.
 ****/
+
+
 
 package xmlTools.include;
 
@@ -84,6 +82,7 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 	private var _progress:Float = 0;
 	private var _total:Float = 0;
 	private var _state:XmlIncludeTaskState;
+	private var _lastError:String;
 
 	public function new(inputProvider:IInputProvider = null, contentPath:String = null, withinDir:String = null) {
 		_state = XmlIncludeTaskState.Waiting;
@@ -257,6 +256,9 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 			}
 		}
 	}
+	public function getLastError() : String{
+		return _lastError;
+	}
 	private function checkState() : Void {
 		var state:XmlIncludeTaskState = XmlIncludeTaskState.Waiting;
 		if(_rootResource!=null){
@@ -266,6 +268,7 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 				case InputState.Loading:
 					state = XmlIncludeTaskState.Working;
 				case InputState.Failed:
+					_lastError = _rootResource.getLastError();
 					setState(XmlIncludeTaskState.Failed);
 					return;
 				default:
@@ -282,6 +285,7 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 					case InputState.Loading:
 						state = XmlIncludeTaskState.Working;
 					case InputState.Failed:
+						_lastError = _rootResource.getLastError();
 						state = XmlIncludeTaskState.Failed;
 						break;
 					default:

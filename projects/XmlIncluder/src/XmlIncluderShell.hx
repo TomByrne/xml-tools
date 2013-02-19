@@ -96,7 +96,7 @@ class XmlIncluderShell {
 					
 					var state = task.getState();
 					if (state == XmlIncludeTaskState.Failed) {
-						Sys.print(print + " - failed\r");
+						Sys.print(print + " - failed "+task.getLastError()+"\r");
 						finished = true;
 					}else if(state==XmlIncludeTaskState.Succeeded) {
 						Sys.print(print + " - success\r");

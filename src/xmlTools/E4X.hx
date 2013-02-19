@@ -20,11 +20,9 @@
 * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-* 
-* The views and conclusions contained in the software and documentation are those of the
-* authors and should not be interpreted as representing official policies, either expressed
-* or implied, of Massive Interactive.
 ****/
+
+
 
 
 
@@ -239,7 +237,7 @@ class E4X
 						}else {
 							// wrap prop access in child() call
 							var nameE = {expr:EConst(CString(field)), pos:pos};
-							var check = macro function(xml:Xml, _i:Int):Bool { return xml.nodeName == $nameE; };
+							var check = macro function(xml:Xml, _i:Int):Bool { return xml.nodeType==Xml.Element && xml.nodeName == $nameE; };
 							return macro $e.child($check);
 						}
 					}

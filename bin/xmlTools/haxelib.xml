@@ -1,7 +1,0 @@
-<project name="xmlTools" url="http://github.com/TomByrne/xml-tools" license="GPL">
-	<user name="tbyrne"/>
-	<tag v="cross" />
-	<tag v="e4x" />
-	<description>A set of XML tools built on top of the cross-platform Xml class.</description>
-	<version name="0.4.0.0">Added XML to Code Macro, Added XML Parser that retains position information</version>
-</project>
