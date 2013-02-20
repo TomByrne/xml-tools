@@ -75,7 +75,7 @@ class XmlToCode
 		switch(tag.nodeName) {
 			case "var": interpVar(posLookup, within, tag, addTo);
 			case "class": interpClass(posLookup, tag, addTo);
-			case "meth": interpFunc(posLookup, tag, addTo);
+			case "meth": interpFunc(posLookup, tag, addTo, within);
 			default: Context.warning("Unknown tag: "+tag.nodeName, posLookup(tag, null));
 		}
 	}
@@ -128,11 +128,30 @@ class XmlToCode
 		var func:Function = createFunc(posLookup, tag, scopeE);
 		addTo.push({ name:name, access:access, kind:FFun(func), pos:pos});
 	}
-	private static function interpFunc(posLookup:Xml->String->Position, tag:Xml, addTo:Array<Expr>):Void {
-		var name:String = tag.get("name");
-		
+	private static function interpFunc(posLookup:Xml->String->Position, tag:Xml, addTo:Array<Expr>, within:Expr):Void {
+		var pos = posLookup(tag, null);
 		var func:Function = createFunc(posLookup, tag, null);
-		addTo.push( { expr : EVars([ { expr : { expr:EFunction(null, func), pos:posLookup(tag, "name") }, name : name, type : null } ]), pos : posLookup(tag, null) } );
+		var funcE:Expr = { expr:EFunction(null, func), pos:pos }
+		var ident:Expr;
+		
+		var name:String = tag.get("name");
+		if (name != null && name.length > 0) {
+			addTo.push( { expr : EVars([ { expr : funcE, name : name, type : null } ]), pos : posLookup(tag, "name") } );
+			ident = Context.parse(name, pos);
+		}else {
+			ident = funcE;	
+		}
+		
+		
+		var addCall:String = tag.get("addCall");
+		if (addCall != null && addCall.length > 0) {
+			pos = posLookup(tag, "addCall");	
+			if (within == null) {
+				addTo.push( { expr : ECall( Context.parse(addCall, pos), [ ident ]), pos : pos } );
+			}else {
+				addTo.push( { expr : ECall( { expr : EField( within, addCall), pos : pos }, [ ident ]), pos : pos } );
+			}
+		}
 	}
 	private static function createFunc(posLookup:Xml->String->Position, tag:Xml, within:Expr):Function{
 		var args:Array<FunctionArg> = [];
