@@ -40,7 +40,7 @@ class XmlIncludeManager
 	@lazyInst
 	public var completeChanged:Signal1<XmlIncludeManager>;
 	
-	public var inputProvider(get_inputProvider, null):IInputProvider;
+	public var inputProvider(get, null):IInputProvider;
 	private function get_inputProvider():IInputProvider {
 		return _inputProvider;
 	}
@@ -61,7 +61,7 @@ class XmlIncludeManager
 		_inputProvider = inputProvider;
 	}
 	
-	public var currentTask(get_currentTask, null):IXmlIncludeTask;
+	public var currentTask(get, null):IXmlIncludeTask;
 	public function get_currentTask():IXmlIncludeTask {
 		return _currentTask;
 	}

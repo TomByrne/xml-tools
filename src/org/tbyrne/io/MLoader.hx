@@ -137,7 +137,7 @@ class Input<T> implements IInput<T> {
 	
 	@lazyInst
 	public var inputStateChanged:Signal1<IInput<T>>;
-	public var inputState(get_state, null):InputState;
+	public var inputState(get, null):InputState;
 	private function get_state():InputState {
 		return _inputState;
 	}

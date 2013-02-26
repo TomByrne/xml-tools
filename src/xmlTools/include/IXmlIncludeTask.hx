@@ -32,8 +32,8 @@ import msignal.Signal;
 
 interface IXmlIncludeTask 
 {
-	public var progressChanged(get_progressChanged, null):Signal1<IXmlIncludeTask>;
-	public var stateChanged(get_stateChanged, null):Signal1<IXmlIncludeTask>;
+	public var progressChanged(get, null):Signal1<IXmlIncludeTask>;
+	public var stateChanged(get, null):Signal1<IXmlIncludeTask>;
 	
 	public function startInclude():Void;
 	

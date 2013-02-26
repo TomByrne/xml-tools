@@ -33,10 +33,10 @@ interface IInputProvider
 }
 interface IInput<T> {
 	
-	public var inputStateChanged(get_inputStateChanged, null):Signal1<IInput<T>>;
-	public var inputState(get_state, null):InputState;
+	public var inputStateChanged(get, null):Signal1<IInput<T>>;
+	public var inputState(get, null):InputState;
 	
-	public var inputProgChanged(get_inputProgChanged, null):Signal1<IInput<T>>;
+	public var inputProgChanged(get, null):Signal1<IInput<T>>;
 	public function getInputProgress():Float;
 	public function getInputTotal():Float;
 	
@@ -60,10 +60,10 @@ interface IOutputProvider
 }
 interface IOutput<T> {
 	
-	public var outputStateChanged(get_stateChanged, null):Signal1<IOutput<T>>;
-	public var outputState(get_state, null):InputState;
+	public var outputStateChanged(get, null):Signal1<IOutput<T>>;
+	public var outputState(get, null):InputState;
 	
-	public var inputProgChanged(get_stateChanged, null):Signal1<IOutput<T>>;
+	public var inputProgChanged(get, null):Signal1<IOutput<T>>;
 	public function getOutputProgress():Float;
 	public function getOutputTotal():Float;
 	
