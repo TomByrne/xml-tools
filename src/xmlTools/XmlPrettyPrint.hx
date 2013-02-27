@@ -58,8 +58,8 @@ class XmlPrettyPrint
 				return "\n" + tabs + "<!--" + xml.nodeValue + "-->";
 			case Xml.DocType:
 				return "\n" + tabs + "<!DOCTYPE " + xml.nodeValue + ">";
-			case Xml.Prolog:
-				return "\n" + tabs + "<? " + xml.nodeValue + "?>";
+			/*case Xml.Prolog:
+				return "\n" + tabs + "<? " + xml.nodeValue + "?>";*/
 				
 			case Xml.Document:
 				return printNodes(xml.iterator(), tabs);
@@ -87,8 +87,8 @@ class XmlPrettyPrint
 			switch(elem.nodeType) {
 				case Xml.DocType:
 					docTypeStr += printNode(elem, tabs);
-				case Xml.Prolog:
-					prologueStr += printNode(elem, tabs);
+				/*case Xml.Prolog:
+					prologueStr += printNode(elem, tabs);*/
 				default:
 					elemStr += printNode(elem, tabs);
 			}

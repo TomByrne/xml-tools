@@ -30,18 +30,19 @@ import mloader.Loader;
 import mloader.LoaderCache;
 import mloader.StringLoader;
 import mloader.XmlLoader;
-import org.tbyrne.io.IO;
 import msignal.Signal;
+import msignal.EventSignal;
+import org.tbyrne.io.IO;
 
 
 class MLoader implements IInputProvider
 {
 	
-	private var uriLookup:Hash<Input<Dynamic>>;
+	private var uriLookup:Map<String, Input<Dynamic>>;
 	private var loaderCache:LoaderCache;
 	
 	public function new() {
-		uriLookup = new Hash();
+		uriLookup = new Map();
 		loaderCache = new LoaderCache();
 	}
 	
@@ -77,7 +78,6 @@ class MLoader implements IInputProvider
 	}
 	
 }
-import msignal.EventSignal;
 @:build(LazyInst.check())
 class Input<T> implements IInput<T> {
 	
@@ -138,7 +138,7 @@ class Input<T> implements IInput<T> {
 	@lazyInst
 	public var inputStateChanged:Signal1<IInput<T>>;
 	public var inputState(get, null):InputState;
-	private function get_state():InputState {
+	private function get_inputState():InputState {
 		return _inputState;
 	}
 	

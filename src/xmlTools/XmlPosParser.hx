@@ -54,19 +54,19 @@ interface IXmlWithPos {
 	public function getRoot():Xml;
 	public function getPos(xml:Xml, ?attName:String):Position;
 }
-import cmtc.ds.hash.ObjectHash;
+
 class XmlWithPos implements IXmlWithPos{
 	
 	private var _xml:Xml;
 	private var _file:String;
-	private var _attLookup:ObjectHash<Xml, Hash<Position>>;
-	private var _elemLookup:ObjectHash<Xml, Position>;
+	private var _attLookup:Map< Xml, Map<Position>>;
+	private var _elemLookup:Map< Xml, Position>;
 	
 	public function new(xml:Xml, file:String) {
 		_xml = xml;
 		_file = file;
-		_attLookup = new ObjectHash();
-		_elemLookup = new ObjectHash();
+		_attLookup = new Map();
+		_elemLookup = new Map();
 	}
 	
 	public function getRoot():Xml {
@@ -76,7 +76,7 @@ class XmlWithPos implements IXmlWithPos{
 		if (attName == null) {
 			return _elemLookup.get(xml);
 		}else{
-			var list:Hash<Position> = _attLookup.get(xml);
+			var list:Map<String, Position> = _attLookup.get(xml);
 			if (list != null && list.exists(attName)) {
 				return list.get(attName);
 			}else {
@@ -91,7 +91,7 @@ class XmlWithPos implements IXmlWithPos{
 		}else{
 			var list =  _attLookup.get(xml);
 			if (list == null) {
-				list = new Hash();
+				list = new Map();
 				_attLookup.set(xml, list);
 			}
 			list.set(attName, pos);

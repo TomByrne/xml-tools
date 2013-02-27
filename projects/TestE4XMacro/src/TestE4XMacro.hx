@@ -46,7 +46,7 @@ class TestE4XMacro
 		
 	}
 	
-	@:macro public static function test(testName:String, expr:Expr, match:Expr):Expr {
+	macro public static function test(testName:String, expr:Expr, match:Expr):Expr {
 		expr = E4X.doE4X(expr, true, false, null, true, null, ReturnType.List);
 		var s1:String = cleanStr(Std.string(expr));
 		var s2:String = cleanStr(Std.string(match));

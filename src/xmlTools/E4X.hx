@@ -43,7 +43,7 @@ import haxe.macro.Context;
 
 class E4X 
 {
-	@:macro public static function x(expr:Expr):Expr {
+	macro public static function x(expr:Expr):Expr {
 		return doE4X(expr, true, false, null, true, null, ReturnType.List);
 	}
 	
@@ -268,7 +268,7 @@ class E4X
 		switch(exprDef) {
 			case EConst(c):
 				switch(c) {
-					case CString(s), CIdent(s):
+					case CString(_), CIdent(_):
 						switch(filterType) {
 							case Node, IndNode:
 								expr = macro { return xml.nodeType == Xml.Element && xml.nodeName == $expr; };
@@ -284,7 +284,7 @@ class E4X
 				var xmlName:String = f.params[0].name;
 				f.expr = checkExpr(f.expr, true, true, xmlName, true, wrapInfo, filterType);
 				return { expr:EFunction(name, f), pos:pos };
-			case EReturn( e ):
+			case EReturn( _ ):
 				expr = checkExpr(expr, true, false, "xml", true, wrapInfo, filterType);
 			default:
 				expr = doE4X(expr, true, false, "xml", true, filterType, ReturnType.Boolean);
@@ -327,9 +327,9 @@ class E4X
 	}
 	private static function isE4XFinalAccess(e:Expr):Bool {
 		switch(e.expr) {
-			case ECall(e2, p):
+			case ECall(e2, _):
 				switch(e2.expr) {
-					case EField(e3, field):
+					case EField(_, field):
 						if (field == "retNodes" || field == "retAttrib" || field == "retText" || field == "has") {
 							return true;
 						}
@@ -359,8 +359,8 @@ class E4X
 		_pool.push(e4X);
 		return ret;
 	}
-	public static function doRetAttribs(e4X:E4X):Iterator<Hash<String>>{
-		var ret:Iterator<Hash<String>> = e4X.retAttribs();
+	public static function doRetAttribs(e4X:E4X):Iterator<Map<String, String>>{
+		var ret:Iterator<Map<String, String>> = e4X.retAttribs();
 		_pool.push(e4X);
 		return ret;
 	}
@@ -417,7 +417,7 @@ class E4X
 	private var _root:Xml;
 	private var _parent:Xml;
 	private var _nodes:List<Xml>;
-	private var _attributes:List<Hash<String>>;
+	private var _attributes:List<Map<String, String>>;
 	private var _texts:List<Null<String>>;
 	private var _retState:E4XReturnState;
 	
@@ -440,7 +440,7 @@ class E4X
 	}
 	
 	public function setXml(xml:Xml):Void {
-		this._attributes = new List<Hash<String>>();
+		this._attributes = new List<Map<String, String>>();
 		this._texts = new List<Null<String>>();
 		this._root = xml;
 		this._retState = E4XReturnState.Node;
@@ -594,8 +594,8 @@ class E4X
 		var it = this._nodes.iterator();
 		var ait:Iterator<String>;
 		var node:Xml;
-		var atts:Hash<String> = null;
-		var newAttribs = new List<Hash<String>>();
+		var atts:Map<String, String> = null;
+		var newAttribs = new List<Map<String, String>>();
 		var s:String;
 		var vs:String;
 		var newNodes = new List<Xml>();
@@ -610,7 +610,7 @@ class E4X
 			{
 				if (x == null)
 				{
-					if (atts == null) atts = new Hash<String>();
+					if (atts == null) atts = new Map<String, String>();
 					s = ait.next();
 					atts.set(s, node.get(s));
 					newNodes.add(node);
@@ -621,7 +621,7 @@ class E4X
 					vs = node.get(s);
 					if (x(s, vs, node))
 					{
-						if (atts == null) atts = new Hash<String>();
+						if (atts == null) atts = new Map<String, String>();
 						atts.set(s, vs);
 						newNodes.add(node);
 					}
@@ -714,7 +714,7 @@ class E4X
 	{
 		return _nodes.iterator();
 	}
-	public function retAttribs():Iterator<Hash<String>>
+	public function retAttribs():Iterator<Map<String, String>>
 	{
 		return _attributes.iterator();
 	}
@@ -756,7 +756,7 @@ class E4X
 				var it = _attributes.iterator();
 				var first:Bool = true;
 				while (it.hasNext()) {
-					var attList:Hash<String> = it.next();
+					var attList:Map<String, String> = it.next();
 					for (i in attList.keys()) {
 						if (first) {
 							_attributesStr = attList.get(i);

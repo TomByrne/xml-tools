@@ -28,7 +28,7 @@ package xmlTools.include;
 
 import haxe.xml.Fast;
 import msignal.Signal;
-import cmtc.ds.hash.ObjectHash;
+
 import org.tbyrne.io.IO;
 import xmlTools.E4X;
 
@@ -76,8 +76,8 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 	private var _withinDir:String;
 	private var _rootData:Xml;
 	private var _resources:Array<IInput<String>>;
-	private var _resourceToNode:ObjectHash<IInput<String>, Array<Xml>>;
-	private var _resourceToData:ObjectHash<IInput<String>, Array<Xml>>;
+	private var _resourceToNode:Map<IInput<String>, Array<Xml>>;
+	private var _resourceToData:Map<IInput<String>, Array<Xml>>;
 	private var _rootResource : IInput<String>;
 	private var _progress:Float = 0;
 	private var _total:Float = 0;
@@ -130,8 +130,8 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 			_rootData = Xml.parse(_rootResource.getData());
 			
 			_resources = new Array<IInput<String>>();
-			_resourceToNode = new ObjectHash();
-			_resourceToData = new ObjectHash();
+			_resourceToNode = new Map();
+			_resourceToData = new Map();
 			
 			addResources(_rootData.firstElement(), true);
 		}else {
@@ -213,7 +213,7 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 					unincludeNode(from, list[i], nodeList[i]);
 				}
 			}
-			_resourceToData.delete(from);
+			_resourceToData.remove(from);
 		}
 		checkState();
 	}
