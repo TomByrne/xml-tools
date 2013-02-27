@@ -28,7 +28,7 @@ import msignal.Signal;
 
 interface IInputProvider 
 {
-	public function getInput<T>(T:Class<Dynamic>, uri:String):IInput<T>;
+	public function getInput<T>(T:Class<T>, uri:String):IInput<T>;
 	public function returnInput<T>(input:IInput<T>):Void;
 }
 interface IInput<T> {

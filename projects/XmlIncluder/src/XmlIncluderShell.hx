@@ -3,7 +3,7 @@ import org.tbyrne.io.MLoader;
 import xmlTools.include.IXmlIncludeTask;
 import xmlTools.include.XmlIncludeTask;
 import xmlTools.include.XmlIncludeManager;
-import cmtc.ds.hash.ObjectHash;
+
 import sys.io.File;
 import sys.io.FileOutput;
 import sys.FileSystem;
@@ -22,10 +22,10 @@ class XmlIncluderShell {
    
    
    private var _xmlIncluder:XmlIncludeManager;
-   private var _taskToOutput:ObjectHash<IXmlIncludeTask, String>;
+   private var _taskToOutput:Map< IXmlIncludeTask, String>;
    
    public function new() {
-		_taskToOutput = new ObjectHash<IXmlIncludeTask, String>();
+		_taskToOutput = new Map< IXmlIncludeTask, String>();
 		_xmlIncluder = new XmlIncludeManager(new MLoader());
 		
 		var args = Sys.args();

@@ -1,4 +1,4 @@
-<? xml version="1.0" encoding="UTF-8"?>
+null
 <root xmlns:xi=http://www.w3.org/2001/XInclude>
 	<xi:include href=child.xml/>
 	<xi:include href=child.xml inParent=true/>

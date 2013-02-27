@@ -24,6 +24,8 @@
 
 package xmlTools;
 
+import haxe.macro.Expr;
+import haxe.macro.Context;
 using StringTools;
 
 /* poor'man enum : reduce code size + a bit faster since inlined */
@@ -48,25 +50,23 @@ extern private class S {
 	public static inline var CDATA			= 17;
 }
 
-import haxe.macro.Expr;
-import haxe.macro.Context;
 interface IXmlWithPos {
 	public function getRoot():Xml;
 	public function getPos(xml:Xml, ?attName:String):Position;
 }
-import cmtc.ds.hash.ObjectHash;
+
 class XmlWithPos implements IXmlWithPos{
 	
 	private var _xml:Xml;
 	private var _file:String;
-	private var _attLookup:ObjectHash<Xml, Hash<Position>>;
-	private var _elemLookup:ObjectHash<Xml, Position>;
+	private var _attLookup:Map< Xml, Map<String, Position>>;
+	private var _elemLookup:Map< Xml, Position>;
 	
 	public function new(xml:Xml, file:String) {
 		_xml = xml;
 		_file = file;
-		_attLookup = new ObjectHash();
-		_elemLookup = new ObjectHash();
+		_attLookup = new Map();
+		_elemLookup = new Map();
 	}
 	
 	public function getRoot():Xml {
@@ -76,7 +76,7 @@ class XmlWithPos implements IXmlWithPos{
 		if (attName == null) {
 			return _elemLookup.get(xml);
 		}else{
-			var list:Hash<Position> = _attLookup.get(xml);
+			var list:Map<String, Position> = _attLookup.get(xml);
 			if (list != null && list.exists(attName)) {
 				return list.get(attName);
 			}else {
@@ -91,7 +91,7 @@ class XmlWithPos implements IXmlWithPos{
 		}else{
 			var list =  _attLookup.get(xml);
 			if (list == null) {
-				list = new Hash();
+				list = new Map();
 				_attLookup.set(xml, list);
 			}
 			list.set(attName, pos);
@@ -122,7 +122,7 @@ class XmlPosParser
 		var nbrackets = 0;
 		var c = str.fastCodeAt(p);
 
-		while (!c.isEOF())
+		while (!c.isEof())
 		{
 			switch(state)
 			{
@@ -344,7 +344,7 @@ class XmlPosParser
 					{
 						p++;
 						var str = str.substr(start + 1, p - start - 2);
-						var child = Xml.createProlog(str);
+						var child = Xml.createProcessingInstruction(str);
 						posLookup.setPos(child, null, start, p);
 						parent.addChild(child);
 						state = S.BEGIN;

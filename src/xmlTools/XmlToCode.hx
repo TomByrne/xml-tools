@@ -31,17 +31,17 @@ import haxe.macro.Type;
 class XmlToCode 
 {
 
-	@:macro public static function path(path:String, ?scope:Expr):Expr {
+	macro public static function path(path:String, ?scope:Expr):Expr {
 		return interpXmlFile(path, scope);
 	}
-	@:macro public static function trace(e:Expr):Expr {
+	macro public static function trace(e:Expr):Expr {
 		trace(e);
 		return macro null;
 	}
 	
 	#if macro
 	
-	private static var _done:Hash<Bool> = new Hash();
+	private static var _done:Map<String, Bool> = new Map();
 	
 	private static function interpXmlFile(path:String, ?scope:Expr):Expr {
 		var pos = Context.currentPos();
