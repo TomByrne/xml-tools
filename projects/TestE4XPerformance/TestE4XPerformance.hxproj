@@ -30,7 +30,7 @@
   <haxelib>
     <library name="msignal" />
     <library name="mloader" />
-    <library name="composure-hx" />
+    <library name="composure" />
   </haxelib>
   <!-- Class files to compile (other referenced classes will automatically be included) -->
   <compileTargets>
