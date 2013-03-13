@@ -2,6 +2,6 @@
 	<resources>
 		<resource type="src" path="../src" />
 		<resource type="license" path="license.mtt" />
-		<resource type="run" path="../projects/XmlCombiner/bin/XmlCombiner.n" />
+		<resource type="run" path="../projects/XmlIncluder/bin/XmlIncluder.n" />
 	</resources>
 </mlib>
