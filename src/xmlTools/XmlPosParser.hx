@@ -24,6 +24,9 @@
 
 package xmlTools;
 
+import haxe.macro.Expr;
+import haxe.macro.Context;
+
 using StringTools;
 
 /* poor'man enum : reduce code size + a bit faster since inlined */
@@ -48,8 +51,6 @@ extern private class S {
 	public static inline var CDATA			= 17;
 }
 
-import haxe.macro.Expr;
-import haxe.macro.Context;
 interface IXmlWithPos {
 	public function getRoot():Xml;
 	public function getPos(xml:Xml, ?attName:String):Position;
@@ -59,7 +60,7 @@ class XmlWithPos implements IXmlWithPos{
 	
 	private var _xml:Xml;
 	private var _file:String;
-	private var _attLookup:Map< Xml, Map<Position>>;
+	private var _attLookup:Map< Xml, Map<String, Position>>;
 	private var _elemLookup:Map< Xml, Position>;
 	
 	public function new(xml:Xml, file:String) {
@@ -122,7 +123,7 @@ class XmlPosParser
 		var nbrackets = 0;
 		var c = str.fastCodeAt(p);
 
-		while (!c.isEOF())
+		while (!StringTools.isEof(c))
 		{
 			switch(state)
 			{
@@ -344,7 +345,7 @@ class XmlPosParser
 					{
 						p++;
 						var str = str.substr(start + 1, p - start - 2);
-						var child = Xml.createProlog(str);
+						var child = Xml.createProcessingInstruction(str);
 						posLookup.setPos(child, null, start, p);
 						parent.addChild(child);
 						state = S.BEGIN;

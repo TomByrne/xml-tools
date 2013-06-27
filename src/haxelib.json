@@ -1,0 +1,15 @@
+{
+  "name": "xmlTools",
+  "url": "http://github.com/TomByrne/xml-tools",
+  "license": "GPL",
+  "tags": ["cross","e4x","xinclude"],
+  "description": "A set of XML tools built on top of the cross-platform Xml class.<br/>For Haxe 2 support use <a href='http://lib.haxe.org/legacy/p/xml-tools'>0.x</a>",
+  "version": "1.0.0",
+  "releasenote": "Fixed dependencies",
+  "contributors": ["tbyrne"],
+  "dependencies": {
+    "msignal": "",
+    "composure": "",
+    "mloader": ""
+  }
+}

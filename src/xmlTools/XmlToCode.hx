@@ -40,6 +40,8 @@ class XmlToCode
 	}
 	
 	#if macro
+
+	private static var PATH_UP = ~/[^\/.]+\/\.\.\//g;
 	
 	private static var _done:Map<String, Bool> = new Map();
 	
@@ -49,6 +51,7 @@ class XmlToCode
 		var firstChar = path.charAt(0);
 		if (firstChar == "/" || firstChar == "\\") {
 			var classFile = Context.getPosInfos(pos).file;
+			classFile = sys.FileSystem.fullPath(classFile);
 			var lastSlash:Int = classFile.lastIndexOf("/");
 			if (lastSlash == -1) {
 				lastSlash = classFile.lastIndexOf("\\");
@@ -56,6 +59,9 @@ class XmlToCode
 			if(lastSlash!=-1){
 				path = classFile.substr(0,lastSlash) + path;
 			}
+		}
+		while(PATH_UP.match(path)){
+			path = PATH_UP.replace(path, "");
 		}
 		var content = sys.io.File.getContent(path);
 		var xmlWithPos = XmlPosParser.parse(content, path);
