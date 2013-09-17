@@ -32,9 +32,9 @@ class TestE4XMacro
 		
 		test("Child Matched Attribute", within.child(a("id") != "test"), E4X.doRetNodes(E4X.getNew(within).child(function(xml:Xml, _i:Int):Bool return E4X.doGetAttribs(E4X.getNew(xml).a(function(attName:String, attVal:String, xml:Xml):Bool {  return attName == "id"; } )) != "test" )));
 		
-		test("Child by name", within.node, E4X.doRetNodes(E4X.getNew(within).child(function(xml:Xml, _i:Int):Bool { return xml.nodeName == "node";} )));
+		test("Child by name", within.node, E4X.doRetNodes(E4X.getNew(within).child(function(xml:Xml, _i:Int):Bool { return xml.nodeType==Xml.Element && xml.nodeName == "node";} )));
 		
-		test("Descendant by name", within._.node, E4X.doRetNodes(E4X.getNew(within).desc().child(function(xml:Xml, _i:Int):Bool { return xml.nodeName == "node";} )));
+		test("Descendant by name", within._.node, E4X.doRetNodes(E4X.getNew(within).desc().child(function(xml:Xml, _i:Int):Bool { return xml.nodeType==Xml.Element && xml.nodeName == "node";} )));
 		
 		test("Desc. Text node of min size", within._.text(text.length > 10), E4X.doRetText(E4X.getNew(within).desc().text(function(text:Null<String>, xml:Xml):Bool return text.length > 10 )));
 		
@@ -54,6 +54,8 @@ class TestE4XMacro
 			trace("Test Failed: "+testName);
 			trace(s1);
 			trace(s2);
+		}else{
+			trace("Test Passed: "+testName);
 		}
 		return expr;
 	}
