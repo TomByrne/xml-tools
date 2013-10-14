@@ -22,6 +22,8 @@
 * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ****/
 
+
+
 package xmlTools;
 import msignal.Signal;
 import org.tbyrne.ProcessTick;
@@ -408,7 +410,7 @@ class XPath
 		}
 		return ret;
 	}
-	inline private function getElemIndex(node:Xml):Int
+	private function getElemIndex(node:Xml):Int
 	{
 		var i:Int = 0;
 		for (sibling in node.parent.elements()) {
