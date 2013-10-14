@@ -4,15 +4,14 @@
   <output>
     <movie outputType="Application" />
     <movie input="" />
-    <movie path="bin\XmlIncluder.n" />
+    <movie path="bin\FlashTest.swf" />
     <movie fps="30" />
     <movie width="800" />
     <movie height="600" />
-    <movie version="1" />
+    <movie version="11" />
     <movie minorVersion="0" />
-    <movie platform="Neko" />
+    <movie platform="Flash Player" />
     <movie background="#FFFFFF" />
-    <movie preferredSDK="Haxe 3.0.0;3.0.0;" />
   </output>
   <!-- Other classes to be compiled into your SWF -->
   <classpaths>
@@ -23,9 +22,9 @@
   <build>
     <option directives="code_completion" />
     <option flashStrict="False" />
-    <option mainClass="XmlIncluderShell" />
+    <option mainClass="FlashTest" />
     <option enabledebug="True" />
-    <option additional="" />
+    <option additional="--macro allowPackage('sys')" />
   </build>
   <!-- haxelib libraries -->
   <haxelib>
@@ -37,9 +36,13 @@
   <compileTargets>
     <compile path="..\..\src\XmlCombinerShell.hx" />
   </compileTargets>
+  <!-- Assets to embed into the output SWF -->
+  <library>
+    <!-- example: <asset path="..." id="..." update="..." glyphs="..." mode="..." place="..." sharepoint="..." /> -->
+  </library>
   <!-- Paths to exclude from the Project Explorer tree -->
   <hiddenPaths>
-    <!-- example: <hidden path="..." /> -->
+    <hidden path="obj" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand />
@@ -48,7 +51,7 @@
   <!-- Other project options -->
   <options>
     <option showHiddenPaths="False" />
-    <option testMovie="OpenDocument" />
+    <option testMovie="Default" />
     <option testMovieCommand="bin/Test CPP.bat" />
   </options>
   <!-- Plugin storage -->

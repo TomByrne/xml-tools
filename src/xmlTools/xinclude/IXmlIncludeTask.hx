@@ -22,7 +22,7 @@
 * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ****/
 
-package xmlTools.include;
+package xmlTools.xinclude;
 
 import msignal.Signal;
 /**

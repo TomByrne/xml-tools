@@ -32,13 +32,14 @@ package xmlTools;
 class XmlPrettyPrint 
 {
 
-	public static function print(xml:Xml):String 
+	public static function print(xml:Xml, addDecl:Bool=false):String 
 	{
 		var ret:String = printNode(xml, "");
+		var decl:String = (addDecl?'<?xml version="1.0" encoding="UTF-8"?>\n':'');
 		if (ret.charAt(0) == "\n") {
-			return ret.substr(1);
+			return decl+ret.substr(1);
 		}else {
-			return ret;
+			return decl+ret;
 		}
 	}
 	
@@ -65,10 +66,29 @@ class XmlPrettyPrint
 				return printNodes(xml.iterator(), tabs);
 			case Xml.Element:
 				var atts = xml.attributes();
-				var attrStr:String = "";
+				var attStrings:Array<String> = [];
 				for (att in atts) {
-					attrStr += " " + att + "=" + xml.get(att);
+					var attVal:String = xml.get(att);
+					if (attVal.indexOf('"') == -1) {
+						attStrings.push(att + "=\"" + attVal+'"');
+					}else if (attVal.indexOf("'") == -1) {
+						attStrings.push(att + "='" + attVal+"'");
+					}else {
+						attVal = StringTools.replace(attVal, '"', '\"');
+						attStrings.push(att + "=\"" + attVal+'"');
+					}
 				}
+				attStrings.sort(function(a:String, b:String):Int{
+					a = a.toLowerCase();
+					b = b.toLowerCase();
+					if (a < b) return -1;
+					if (a > b) return 1;
+					return 0;
+				});
+				
+				var attrStr:String;
+				if (attStrings.length > 0) attrStr = " "+attStrings.join(" ");
+				else attrStr = "";
 				
 				var elemStr = printNodes(xml.iterator(), tabs+"\t");
 				

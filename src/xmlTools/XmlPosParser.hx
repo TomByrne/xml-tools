@@ -86,7 +86,11 @@ class XmlWithPos implements IXmlWithPos{
 		}
 	}
 	public function setPos(xml:Xml, attName:String, min:Int, max:Int):Void {
-		var pos = Context.makePosition( { min:min, max:max, file:_file } );
+		#if macro
+			var pos = Context.makePosition( { min:min, max:max, file:_file } );
+		#else
+			var pos:Position = { min:min, max:max, file:_file };
+		#end
 		if (attName == null) {
 			_elemLookup.set(xml, pos);
 		}else{

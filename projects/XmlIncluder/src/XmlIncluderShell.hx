@@ -1,8 +1,8 @@
 
 import org.tbyrne.io.MLoader;
-import xmlTools.include.IXmlIncludeTask;
-import xmlTools.include.XmlIncludeTask;
-import xmlTools.include.XmlIncludeManager;
+import xmlTools.xinclude.IXmlIncludeTask;
+import xmlTools.xinclude.XmlIncludeTask;
+import xmlTools.xinclude.XmlIncludeManager;
 
 import sys.io.File;
 import sys.io.FileOutput;
