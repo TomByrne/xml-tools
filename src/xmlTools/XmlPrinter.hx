@@ -31,12 +31,31 @@ package xmlTools;
  * @author Tom Byrne
  */
 
-class XmlPrettyPrint 
+class XmlPrinter 
 {
 
-	public static function print(xml:Xml, addDecl:Bool=false):String 
+	public static function print(xml:Xml, addDecl:Bool=false, whitespace:WhiteSpaceType=null):String 
 	{
-		var ret:String = printNode(xml, "");
+		if (whitespace == null) whitespace = WhiteSpaceType.TABS;
+		
+		var spaceStr:String;
+		var newlineStr:String;
+		switch(whitespace) {
+			case WhiteSpaceType.TABS:
+				spaceStr = "\t";
+				newlineStr = "\n";
+				
+			case WhiteSpaceType.NONE:
+				spaceStr = "";
+				newlineStr = "";
+				
+			case WhiteSpaceType.SPACES(count):
+				spaceStr = "";
+				for (i in 0 ... count) spaceStr += " ";
+				newlineStr = "\n";
+		}
+		
+		var ret:String = printNode(xml, "", spaceStr, newlineStr);
 		var decl:String = (addDecl?'<?xml version="1.0" encoding="UTF-8"?>\n':'');
 		if (ret.charAt(0) == "\n") {
 			return decl+ret.substr(1);
@@ -45,7 +64,7 @@ class XmlPrettyPrint
 		}
 	}
 	
-	private static function printNode(xml:Xml, tabs:String):String 
+	private static function printNode(xml:Xml, leadSpace:String, spaceStr:String, newlineStr:String):String 
 	{
 		switch(xml.nodeType) {
 			case Xml.PCData:
@@ -56,16 +75,16 @@ class XmlPrettyPrint
 					return val;
 				}
 			case Xml.CData:
-				return "\n" + tabs + "<![CDATA[" + xml.nodeValue + "]]>";
+				return newlineStr + leadSpace + "<![CDATA[" + xml.nodeValue + "]]>";
 			case Xml.Comment:
-				return "\n" + tabs + "<!--" + xml.nodeValue + "-->";
+				return newlineStr + leadSpace + "<!--" + xml.nodeValue + "-->";
 			case Xml.DocType:
-				return "\n" + tabs + "<!DOCTYPE " + xml.nodeValue + ">";
+				return newlineStr + leadSpace + "<!DOCTYPE " + xml.nodeValue + ">";
 			/*case Xml.Prolog:
-				return "\n" + tabs + "<? " + xml.nodeValue + "?>";*/
+				return newlineStr + leadSpace + "<? " + xml.nodeValue + "?>";*/
 				
 			case Xml.Document:
-				return printNodes(xml.iterator(), tabs);
+				return printNodes(xml.iterator(), leadSpace, spaceStr, newlineStr);
 			case Xml.Element:
 				var atts = xml.attributes();
 				var attStrings:Array<String> = [];
@@ -92,27 +111,27 @@ class XmlPrettyPrint
 				if (attStrings.length > 0) attrStr = " "+attStrings.join(" ");
 				else attrStr = "";
 				
-				var elemStr = printNodes(xml.iterator(), tabs+"\t");
+				var elemStr = printNodes(xml.iterator(), leadSpace+spaceStr, spaceStr, newlineStr);
 				
 				if (elemStr.length > 0) {
-					return "\n" + tabs+"<" + xml.nodeName + attrStr+">"+elemStr+"\n"+tabs+"</"+xml.nodeName+">";
+					return newlineStr + leadSpace+"<" + xml.nodeName + attrStr+">"+elemStr+newlineStr+leadSpace+"</"+xml.nodeName+">";
 				}else {
-					return "\n" + tabs+"<" + xml.nodeName + attrStr+"/>";
+					return newlineStr + leadSpace+"<" + xml.nodeName + attrStr+"/>";
 				}
 		}
 	}
-	private static function printNodes(elems:Iterator<Xml>, tabs:String):String {
+	private static function printNodes(elems:Iterator<Xml>, leadSpace:String, spaceStr:String, newlineStr:String):String {
 		var docTypeStr:String = "";
 		var prologueStr:String = "";
 		var elemStr:String = "";
 		for (elem in elems) {
 			switch(elem.nodeType) {
 				case Xml.DocType:
-					docTypeStr += printNode(elem, tabs);
+					docTypeStr += printNode(elem, leadSpace, spaceStr, newlineStr);
 				/*case Xml.Prolog:
-					prologueStr += printNode(elem, tabs);*/
+					prologueStr += printNode(elem, leadSpace, spaceStr, newlineStr);*/
 				default:
-					elemStr += printNode(elem, tabs);
+					elemStr += printNode(elem, leadSpace, spaceStr, newlineStr);
 			}
 		}
 		return docTypeStr+prologueStr+elemStr;
@@ -126,4 +145,10 @@ class XmlPrettyPrint
 		}
 		return true;
 	}
+}
+
+enum WhiteSpaceType {
+	NONE;
+	TABS;
+	SPACES(count:Int);
 }

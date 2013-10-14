@@ -8,7 +8,7 @@ import xmlTools.xinclude.IXmlIncludeTask;
 import xmlTools.xinclude.IXmlIncludeTask.XmlIncludeTaskState;
 import xmlTools.xinclude.XmlIncludeManager;
 import xmlTools.xinclude.XmlIncludeTask;
-import xmlTools.XmlPrettyPrint;
+import xmlTools.XmlPrinter;
 
 /**
  * ...
@@ -73,8 +73,8 @@ class FlashTest
 			if (success==null && task.getState()==XmlIncludeTaskState.Succeeded) {
 				var match:IInput<String> = _matches.get(task);
 				if (match.inputState == InputState.Loaded) {
-					var value:String = XmlPrettyPrint.print(task.getData());
-					var matchVal:String = XmlPrettyPrint.print(Xml.parse(match.getData()));
+					var value:String = XmlPrinter.print(task.getData());
+					var matchVal:String = XmlPrinter.print(Xml.parse(match.getData()));
 					success = (value == matchVal);
 					_success.set(task, success);
 				}

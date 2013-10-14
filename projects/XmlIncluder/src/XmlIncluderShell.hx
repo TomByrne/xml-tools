@@ -7,7 +7,7 @@ import xmlTools.xinclude.XmlIncludeManager;
 import sys.io.File;
 import sys.io.FileOutput;
 import sys.FileSystem;
-import xmlTools.XmlPrettyPrint;
+import xmlTools.XmlPrinter;
 
 class XmlIncluderShell {
 	
@@ -108,7 +108,7 @@ class XmlIncluderShell {
 				}
 				if (task.getState() == XmlIncludeTaskState.Succeeded) {
 					var outputFile:String = _taskToOutput.get(task);
-					var printed:String = XmlPrettyPrint.print(task.getData());
+					var printed:String = XmlPrinter.print(task.getData());
 					File.saveContent(outputFile, printed);
 				}else {
 					Sys.println("XML Include Failed: "+task.getRootFile());
