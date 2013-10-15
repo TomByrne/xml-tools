@@ -40,6 +40,7 @@ class FlashTest
 		addTest("test3", "/root.xml", "/done.xml");
 		addTest("test4", "/root.xml", "/done.xml");
 		addTest("test5", "/root.xml", "/done.xml");
+		addTest("test6", "/root.xml", "/done.xml");
 		
 		_xmlIncManager.completeChanged.add(onCompleteChanged);
 		_xmlIncManager.progressChanged.add(onProgressChanged);

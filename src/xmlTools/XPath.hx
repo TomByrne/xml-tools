@@ -159,8 +159,12 @@ class XPath
 		var part:String = _pathParts[_pathIndex];
 		var selIndex:Int = part.indexOf(SELECTOR_DELIMIT);
 		if (selIndex == -1) {
-			_lastError = "Incorrectly formatted xpath token (index:" + _pathIndex + "), all tokens must have selector delimited by '::'";
-			setState(XPathState.Failed);
+			if (_pathIndex == 0) {
+				// if not using a selector, the context node must be referenced first
+				// ignore here and name gets checked below
+			}else {
+				_currContext = getChildren(_currContext);
+			}
 		}else {
 			var sel:String = part.substr(0, selIndex);
 			part = part.substr(selIndex + SELECTOR_DELIMIT.length);

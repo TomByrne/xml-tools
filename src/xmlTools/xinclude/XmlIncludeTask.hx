@@ -58,6 +58,7 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 	public static var XI_TAG_NAME = "include";
 	public static var XI_URL_ATT = "href";
 	public static var XI_IN_PARENT = "inParent";
+	public static var XI_KEEP = "keep";
 	public static var XI_PARSE = "parse";
 	public static var XI_XPOINTER = "xpointer";
 	public static var XI_XPOINTER_DELIMIT = "#";
@@ -234,7 +235,8 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 			for (referenceNode in list) {
 				includeNode(from, referenceNode);
 			}
-		}else{
+			from.inputStateChanged.remove(onInputStateChanged);
+		}/*else{
 			var nodeList:Array<Xml> = _resourceToData.get(from);
 			if (nodeList != null) {
 				for (i in 0...nodeList.length) {
@@ -242,7 +244,7 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 				}
 			}
 			_resourceToData.remove(from);
-		}
+		}*/
 		checkState();
 	}
 	private function includeNode(input:IInput<String>, referenceNode:Xml):Void {
@@ -295,8 +297,12 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 				if (childNode.nodeType == Xml.Element) addResources(childNode, false);
 			}
 		}
+		if (referenceNode.get(XI_KEEP) != "true") {
+			referenceNode.parent.removeChild(referenceNode);
+		}
+		
 	}
-	private function unincludeNode(input:IInput<String>, referenceNode:Xml, childNode:Xml):Void {
+	/*private function unincludeNode(input:IInput<String>, referenceNode:Xml, childNode:Xml):Void {
 		if (referenceNode.get(XI_IN_PARENT) == "true") {
 			// @todo - revert in parent behaviour
 		}else{
@@ -304,7 +310,7 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 				childNode.parent.removeChild(childNode);
 			}
 		}
-	}
+	}*/
 	public function getLastError() : String{
 		return _lastError;
 	}
