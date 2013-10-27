@@ -282,7 +282,7 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 				nodeList.push(childNode);
 				var atts:Iterator<String> = childNode.attributes();
 				for(att in atts){
-					referenceNode.parent.set(att, childNode.get(att));
+					if(referenceNode.parent.get(att)==null)referenceNode.parent.set(att, childNode.get(att));
 				}
 				var elements:Iterator<Xml> = childNode.elements();
 				for(child in elements){
