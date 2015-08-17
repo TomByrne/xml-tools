@@ -1,0 +1,8 @@
+-neko bin/XmlIncluder.n
+-main XmlIncluderShell
+-debug
+-cp src
+-cp ../../src
+-lib msignal
+-lib mloader
+-lib composure

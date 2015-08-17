@@ -1,0 +1,7 @@
+-cpp bin/XmlIncluder
+-main XmlIncluderShell
+-cp src
+-cp ../../src
+-lib msignal
+-lib mloader
+-lib composure

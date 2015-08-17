@@ -28,6 +28,7 @@ package xmlTools;
 
 import haxe.macro.Expr;
 import haxe.macro.Context;
+
 using StringTools;
 
 /* poor'man enum : reduce code size + a bit faster since inlined */
@@ -87,7 +88,11 @@ class XmlWithPos implements IXmlWithPos{
 		}
 	}
 	public function setPos(xml:Xml, attName:String, min:Int, max:Int):Void {
-		var pos = Context.makePosition( { min:min, max:max, file:_file } );
+		#if macro
+			var pos = Context.makePosition( { min:min, max:max, file:_file } );
+		#else
+			var pos:Position = { min:min, max:max, file:_file };
+		#end
 		if (attName == null) {
 			_elemLookup.set(xml, pos);
 		}else{
@@ -124,7 +129,7 @@ class XmlPosParser
 		var nbrackets = 0;
 		var c = str.fastCodeAt(p);
 
-		while (!c.isEof())
+		while (!StringTools.isEof(c))
 		{
 			switch(state)
 			{

@@ -25,16 +25,31 @@
 
 
 
+/**
+ * Unsupported features of XInclude spec:
+	 * encoding attribute
+	 * accept attribute
+	 * accept-language attribute
+	 * fallback Element
+	 * xpointer only uses xpath functionality currently, none of the xpointer extended features
+	 * references Property Fixup
+	 * Namespace Fixup
+	 * Base URI Fixup
+	 * Language Fixup
+ */
 
-package xmlTools.include;
 
+package xmlTools.xinclude;
+
+import haxe.Log;
 import haxe.xml.Fast;
 import msignal.Signal;
+import xmlTools.XPath;
 
 import org.tbyrne.io.IO;
 import xmlTools.E4X;
 
-import xmlTools.include.IXmlIncludeTask;
+import xmlTools.xinclude.IXmlIncludeTask;
 
 @:build(LazyInst.check())
 class XmlIncludeTask implements IXmlIncludeTask  {
@@ -43,7 +58,10 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 	public static var XI_TAG_NAME = "include";
 	public static var XI_URL_ATT = "href";
 	public static var XI_IN_PARENT = "inParent";
+	public static var XI_KEEP = "keep";
 	public static var XI_PARSE = "parse";
+	public static var XI_XPOINTER = "xpointer";
+	public static var XI_XPOINTER_DELIMIT = "#";
 	
 	
 	@lazyInst
@@ -85,6 +103,7 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 	private var _total:Float = 0;
 	private var _state:XmlIncludeTaskState;
 	private var _lastError:String;
+	private var _xpath:XPath;
 
 	public function new(inputProvider:IInputProvider = null, contentPath:String = null, withinDir:String = null) {
 		_state = XmlIncludeTaskState.Waiting;
@@ -148,6 +167,10 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 			checkState();
 		}
 	}
+	private function log(str:String):Bool {
+		trace(str);
+		return false;
+	}
 
 	private function addResources(root : Xml, allowCheck:Bool) : Void {
 		
@@ -166,8 +189,8 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 		}else {
 			xcfTag = xcfNs + ":"+XI_TAG_NAME;
 		}
-		var nodes:Iterator<Xml> = E4X.x(root._(nodeType==Xml.Element && nodeName == xcfTag && a(XI_URL_ATT)));
-		for(node in nodes){
+		var nodes:Iterator<Xml> = E4X.x(root._(nodeType == Xml.Element && nodeName == xcfTag && a(XI_URL_ATT)));
+		for (node in nodes) {
 			addResource(node);
 		}
 		if(root.nodeName==xcfTag && root.get(XI_URL_ATT)!=null){
@@ -180,6 +203,10 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 
 	private function addResource(node : Xml) : Void {
 		var url:String = node.get(XI_URL_ATT);
+		var index:Int = url.indexOf(XI_XPOINTER_DELIMIT);
+		if (index != -1) {
+			url = url.substr(0, index);
+		}
 		
 		var resource:IInput<String> = _inputProvider.getInput(String, createUri(url));
 		
@@ -208,7 +235,8 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 			for (referenceNode in list) {
 				includeNode(from, referenceNode);
 			}
-		}else{
+			from.inputStateChanged.remove(onInputStateChanged);
+		}/*else{
 			var nodeList:Array<Xml> = _resourceToData.get(from);
 			if (nodeList != null) {
 				for (i in 0...nodeList.length) {
@@ -216,15 +244,31 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 				}
 			}
 			_resourceToData.remove(from);
-		}
+		}*/
 		checkState();
 	}
 	private function includeNode(input:IInput<String>, referenceNode:Xml):Void {
-		var childNode:Xml;
+		var childNodes:Iterable<Xml>;
 		if (referenceNode.get(XI_PARSE) == "text") {
-			childNode = Xml.createCData(input.getData());
+			var text:String = input.getData();
+			text = StringTools.replace(text, "\r", ""); // This matches the behaviour of Xml.parse
+			childNodes = [Xml.createCData(text)];
 		}else {
-			childNode = Xml.parse(input.getData()).firstElement();
+			var pointer = referenceNode.get(XI_XPOINTER);
+			if (pointer == null) {
+				var url:String = referenceNode.get(XI_URL_ATT);
+				var index:Int = url.indexOf(XI_XPOINTER_DELIMIT);
+				if (index != -1) {
+					pointer = url.substr(index + XI_XPOINTER_DELIMIT.length);
+				}
+			}
+			var node:Xml = Xml.parse(input.getData()).firstElement();
+			if (pointer!=null && pointer.length>0) {
+				if (_xpath == null)_xpath = new XPath();
+				childNodes = _xpath.resolve(node, pointer);
+			}else{
+				childNodes = [node];
+			}
 		}	
 		
 		var nodeList:Array<Xml> = _resourceToData.get(input);
@@ -232,24 +276,33 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 			nodeList = new Array();
 			_resourceToData.set(input, nodeList);
 		}
-		nodeList.push(childNode);
-				
+		
 		if(referenceNode.get(XI_IN_PARENT)=="true"){
-			var atts:Iterator<String> = childNode.attributes();
-			for(att in atts){
-				referenceNode.parent.set(att, childNode.get(att));
-			}
-			var elements:Iterator<Xml> = childNode.elements();
-			for(child in elements){
-				referenceNode.parent.addChild(child);
-				addResources(child, false);
+			for(childNode in childNodes){
+				nodeList.push(childNode);
+				var atts:Iterator<String> = childNode.attributes();
+				for(att in atts){
+					if(referenceNode.parent.get(att)==null)referenceNode.parent.set(att, childNode.get(att));
+				}
+				var elements:Iterator<Xml> = childNode.elements();
+				for(child in elements){
+					referenceNode.parent.addChild(child);
+					addResources(child, false);
+				}
 			}
 		}else {
-			referenceNode.parent.addChild(childNode);
-			if(childNode.nodeType==Xml.Element)addResources(childNode, false);
+			for(childNode in childNodes){
+				nodeList.push(childNode);
+				referenceNode.parent.addChild(childNode);
+				if (childNode.nodeType == Xml.Element) addResources(childNode, false);
+			}
 		}
+		if (referenceNode.get(XI_KEEP) != "true") {
+			referenceNode.parent.removeChild(referenceNode);
+		}
+		
 	}
-	private function unincludeNode(input:IInput<String>, referenceNode:Xml, childNode:Xml):Void {
+	/*private function unincludeNode(input:IInput<String>, referenceNode:Xml, childNode:Xml):Void {
 		if (referenceNode.get(XI_IN_PARENT) == "true") {
 			// @todo - revert in parent behaviour
 		}else{
@@ -257,7 +310,7 @@ class XmlIncludeTask implements IXmlIncludeTask  {
 				childNode.parent.removeChild(childNode);
 			}
 		}
-	}
+	}*/
 	public function getLastError() : String{
 		return _lastError;
 	}

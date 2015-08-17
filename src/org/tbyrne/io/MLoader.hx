@@ -170,7 +170,6 @@ class Input<T> implements IInput<T> {
 	public function read():Void {
 		switch(_inputState) {
 			case InputState.Failed, InputState.Unloaded:
-				Sys.println("loader: "+loader.url);
 				loader.load();
 			default:
 				//ignore

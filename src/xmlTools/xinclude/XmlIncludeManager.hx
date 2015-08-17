@@ -26,13 +26,13 @@
 
 
 
-package xmlTools.include;
+package xmlTools.xinclude;
 
 import haxe.io.Bytes;
 import msignal.Signal;
 import org.tbyrne.io.IO;
 
-import xmlTools.include.IXmlIncludeTask;
+import xmlTools.xinclude.IXmlIncludeTask;
 
 @:build(LazyInst.check())
 class XmlIncludeManager 

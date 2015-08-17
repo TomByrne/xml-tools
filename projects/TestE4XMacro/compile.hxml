@@ -1,0 +1,8 @@
+-neko bin/TestE4XMacro
+-main TestE4XMacro
+-debug
+-cp src
+-cp ../../src
+-lib msignal
+-lib mloader
+-lib composure

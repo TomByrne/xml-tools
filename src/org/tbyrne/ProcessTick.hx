@@ -1,5 +1,5 @@
 /****
-* Copyright 2015 tbyrne.org All rights reserved.
+* Copyright 2013 tbyrne.org All rights reserved.
 * 
 * Redistribution and use in source and binary forms, with or without modification, are
 * permitted provided that the following conditions are met:
@@ -22,36 +22,22 @@
 * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ****/
 
+package org.tbyrne;
 
-
-package xmlTools.include;
-
+import haxe.Timer;
 import msignal.Signal;
-/**
- * ...
- * @author Tom Byrne
- */
-
-interface IXmlIncludeTask 
+class ProcessTick
 {
-	public var progressChanged(get, null):Signal1<IXmlIncludeTask>;
-	public var stateChanged(get, null):Signal1<IXmlIncludeTask>;
+	private static var _process:Signal0;
 	
-	public function startInclude():Void;
+	public static function tick():Signal0 {
+		if (_process == null) {
+			_process = new Signal0();
+			
+			var timer:Timer = new Timer(Std.int(1000 / 60));
+			timer.run = _process.dispatch;
+		}
+		return _process;
+	}
 	
-	public function getState():XmlIncludeTaskState;
-	public function getData():Xml;
-	public function getRootFile():String;
-	public function getProgress():Float;
-	public function getTotal():Float;
-	
-	public function getLastError():String;
-	
-}
-
-enum XmlIncludeTaskState {
-	Waiting;
-	Working;
-	Succeeded;
-	Failed;
 }

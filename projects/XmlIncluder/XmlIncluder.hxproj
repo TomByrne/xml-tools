@@ -4,13 +4,13 @@
   <output>
     <movie outputType="Application" />
     <movie input="" />
-    <movie path="bin\XmlIncluder.exe" />
+    <movie path="bin\FlashTest.swf" />
     <movie fps="30" />
     <movie width="800" />
     <movie height="600" />
-    <movie version="1" />
+    <movie version="11" />
     <movie minorVersion="0" />
-    <movie platform="C++" />
+    <movie platform="Flash Player" />
     <movie background="#FFFFFF" />
     <movie preferredSDK="Haxe 3.0.0;3.0.0;" />
   </output>
@@ -23,23 +23,28 @@
   <build>
     <option directives="code_completion" />
     <option flashStrict="False" />
-    <option mainClass="XmlIncluderShell" />
+    <option noInlineOnDebug="False" />
+    <option mainClass="FlashTest" />
     <option enabledebug="True" />
-    <option additional="" />
+    <option additional="--macro allowPackage('sys')" />
   </build>
   <!-- haxelib libraries -->
   <haxelib>
     <library name="msignal" />
     <library name="mloader" />
-    <library name="composure-hx" />
+    <library name="composure" />
   </haxelib>
   <!-- Class files to compile (other referenced classes will automatically be included) -->
   <compileTargets>
     <compile path="..\..\src\XmlCombinerShell.hx" />
   </compileTargets>
+  <!-- Assets to embed into the output SWF -->
+  <library>
+    <!-- example: <asset path="..." id="..." update="..." glyphs="..." mode="..." place="..." sharepoint="..." /> -->
+  </library>
   <!-- Paths to exclude from the Project Explorer tree -->
   <hiddenPaths>
-    <!-- example: <hidden path="..." /> -->
+    <hidden path="obj" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand />
@@ -48,7 +53,7 @@
   <!-- Other project options -->
   <options>
     <option showHiddenPaths="False" />
-    <option testMovie="OpenDocument" />
+    <option testMovie="Default" />
     <option testMovieCommand="bin/Test CPP.bat" />
   </options>
   <!-- Plugin storage -->

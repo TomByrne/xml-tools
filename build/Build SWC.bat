@@ -1,0 +1,2 @@
+haxe  -cp ../src -lib msignal -lib mloader -lib composure -swf ../bin/XmlTools.swc -swf-version 11.7 -D code_completion --macro allowPackage('sys') --macro include('xmlTools') --macro include('org.tbyrne')
+pause
