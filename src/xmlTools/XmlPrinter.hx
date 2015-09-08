@@ -81,7 +81,8 @@ class XmlPrinter
 			case Xml.DocType:
 				return newlineStr + leadSpace + "<!DOCTYPE " + xml.nodeValue + ">";
 			case Xml.ProcessingInstruction:
-				return newlineStr + leadSpace + "<? " + xml.nodeValue + "?>";
+				trace("hm: "+xml.nodeValue);
+				return newlineStr + leadSpace + "<?" + xml.nodeValue + "?>";
 				
 			case Xml.Document:
 				return printNodes(xml.iterator(), leadSpace, spaceStr, newlineStr);

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root xmlns:xi="http://www.w3.org/2001/XInclude" >
+	<?xml-stylesheet type="text/xsl" href="/images/Glossary/main.xsl"?>
 	<xi:include href="child.xml#xpointer(child::nodeName[attribute::attName='attValue'])" />
 </root>
