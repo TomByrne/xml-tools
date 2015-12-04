@@ -4,7 +4,7 @@
   "license": "MIT",
   "tags": ["cross","e4x","xinclude"],
   "description": "A set of XML tools built on top of the cross-platform Xml class.<br/>For Haxe 2 support use <a href='http://lib.haxe.org/legacy/p/xml-tools'>0.x</a>",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "releasenote": "",
   "contributors": ["tbyrne"],
   "dependencies": {

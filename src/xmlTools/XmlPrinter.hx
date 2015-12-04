@@ -45,14 +45,14 @@ class XmlPrinter
 				spaceStr = "\t";
 				newlineStr = "\n";
 				
-			case WhiteSpaceType.NONE:
-				spaceStr = "";
-				newlineStr = "";
-				
 			case WhiteSpaceType.SPACES(count):
 				spaceStr = "";
 				for (i in 0 ... count) spaceStr += " ";
 				newlineStr = "\n";
+				
+			default:
+				spaceStr = "";
+				newlineStr = "";
 		}
 		
 		var ret:String = printNode(xml, "", spaceStr, newlineStr);
