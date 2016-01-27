@@ -55,6 +55,15 @@ class XmlPrinter
 				newlineStr = "";
 		}
 		
+		if (addDecl) {
+			for (child in xml) {
+				if (child.nodeType == Xml.ProcessingInstruction && child.nodeValue.indexOf("xml version=")==0) {
+					addDecl = false;
+					break;
+				}
+			}
+		}
+		
 		var ret:String = printNode(xml, "", spaceStr, newlineStr);
 		var decl:String = (addDecl?'<?xml version="1.0" encoding="UTF-8"?>\n':'');
 		if (ret.charAt(0) == "\n") {
@@ -81,7 +90,6 @@ class XmlPrinter
 			case Xml.DocType:
 				return newlineStr + leadSpace + "<!DOCTYPE " + xml.nodeValue + ">";
 			case Xml.ProcessingInstruction:
-				trace("hm: "+xml.nodeValue);
 				return newlineStr + leadSpace + "<?" + xml.nodeValue + "?>";
 				
 			case Xml.Document:
@@ -115,7 +123,11 @@ class XmlPrinter
 				var elemStr = printNodes(xml.iterator(), leadSpace+spaceStr, spaceStr, newlineStr);
 				
 				if (elemStr.length > 0) {
-					return newlineStr + leadSpace+"<" + xml.nodeName + attrStr+">"+elemStr+newlineStr+leadSpace+"</"+xml.nodeName+">";
+					if(elemStr.indexOf(newlineStr)!=-1){
+						return newlineStr + leadSpace+"<" + xml.nodeName + attrStr + ">" + elemStr + newlineStr + leadSpace + "</" + xml.nodeName+">";
+					} else {
+						return newlineStr + leadSpace+"<" + xml.nodeName + attrStr + ">" + elemStr + "</" + xml.nodeName+">";
+					}
 				}else {
 					return newlineStr + leadSpace+"<" + xml.nodeName + attrStr+"/>";
 				}
